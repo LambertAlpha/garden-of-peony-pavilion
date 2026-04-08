@@ -73,8 +73,9 @@ PALETTE = {
     "fern":         "minecraft:fern",
     "bamboo":       "minecraft:bamboo",
     "cherry_log":   "minecraft:cherry_log",
-    "cherry_leaves": "minecraft:cherry_leaves",
-    "oak_leaves":   "minecraft:oak_leaves",
+    "cherry_leaves": "minecraft:cherry_leaves[persistent=true]",
+    "oak_leaves":    "minecraft:oak_leaves[persistent=true]",
+    "spruce_leaves": "minecraft:spruce_leaves[persistent=true]",
     "oak_log":      "minecraft:oak_log",
 
     # ── 石景 ──
