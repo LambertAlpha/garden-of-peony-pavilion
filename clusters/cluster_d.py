@@ -229,15 +229,21 @@ def _build_courtyard(b: MinecraftBuilder):
             b.setblock(x, Y0, z, blk)
 
     # 东西矮墙: 3格高(墙基+墙身+压瓦)
+    # 【已修改】西墙(X=51)在Z=77~79留3格宽门洞，对准西廊中心线Z=78
+    door_z1, door_z2 = 77, 79  # 门洞Z范围
+    door_h = 3  # 门洞高度3格
+
     for z in range(cz1, cz2 + 1):
         for wx in [cx1, cx2]:
+            # 西墙门洞：X=51, Z=77~79, 高度3格(Y0+1 ~ Y0+3)留空
+            if wx == cx1 and door_z1 <= z <= door_z2:
+                continue  # 跳过门洞位置，不建墙
             b.setblock(wx, Y0 + 1, z, WALL_BASE)
             b.setblock(wx, Y0 + 2, z, WALL)
             b.setblock(wx, Y0 + 3, z, WALL_CAP)
 
-    # 东西墙花窗(居中)
+    # 东墙花窗(居中) — 西墙门洞处不放花窗了
     wz = (cz1 + cz2) // 2
-    b.setblock(cx1, Y0 + 2, wz, f"{TRAPDOOR}[facing=east,half=bottom,open=true]")
     b.setblock(cx2, Y0 + 2, wz, f"{TRAPDOOR}[facing=west,half=bottom,open=true]")
 
 
@@ -419,7 +425,7 @@ def _build_side_flower_walls(b: MinecraftBuilder):
 # ══════════════════════════════════════════════════════════
 
 def _build_gui_shu(b: MinecraftBuilder):
-    """闺塾: 小型书房院落, 东面开敞, 围墙小院"""
+    """闺塾: 小型书房院落, 东墙有门洞通西廊, 围墙小院"""
     print("  [8/9] 闺塾...")
 
     gx1, gx2 = 18, 26
@@ -451,7 +457,9 @@ def _build_gui_shu(b: MinecraftBuilder):
     b.fill(rx1, beam_y, rz1, rx1, beam_y, rz2, BEAM)
     b.fill(rx2, beam_y, rz1, rx2, beam_y, rz2, BEAM)
 
-    # 西墙+北墙+南墙(白墙), 东面开敞
+    # 【已修改】西墙+北墙+南墙+东墙(白墙)，东墙(X=26)在Z=77~79留3格宽×3格高门洞
+    east_door_z1, east_door_z2 = 77, 79  # 东墙门洞Z范围，对准西廊中心线Z=78
+    east_door_h = 3  # 门洞高度3格
     for y in range(floor_y + 1, beam_y):
         # 西墙
         for z in range(rz1 + 1, rz2):
@@ -464,6 +472,11 @@ def _build_gui_shu(b: MinecraftBuilder):
             if cx - 1 <= x <= cx + 1 and y <= floor_y + 3:
                 continue  # 南面留小门
             b.setblock(x, y, rz2, WALL)
+        # 东墙(X=rx2=26)：Z=77~79处留3格宽×3格高门洞
+        for z in range(rz1 + 1, rz2):
+            if east_door_z1 <= z <= east_door_z2 and y <= floor_y + east_door_h:
+                continue  # 门洞
+            b.setblock(rx2, y, z, WALL)
 
     # 北墙花窗
     for x in range(rx1 + 2, rx2 - 1):
@@ -472,8 +485,9 @@ def _build_gui_shu(b: MinecraftBuilder):
         b.setblock(x, floor_y + 4, rz1,
                    f'{TRAPDOOR}[facing=south,half=top,open=true]')
 
-    # 悬山顶(东西向脊)
-    _build_gable_roof(b, rx1 - 1, rx2 + 1, rz1 - 1, rz2 + 1, beam_y + 1)
+    # 悬山顶【已修改】改为脊线沿Z轴(南北向)，坡面向东西倾斜，加飞檐
+    _build_gable_roof(b, rx1 - 1, rx2 + 1, rz1 - 1, rz2 + 1, beam_y + 1,
+                      axis='z')
 
     # 院子围墙(gx1~rx1, gz1~gz2)
     for z in range(gz1, gz2 + 1):
@@ -488,40 +502,95 @@ def _build_gui_shu(b: MinecraftBuilder):
     b.fill(rx1 + 1, floor_y, rz1 + 1, rx2 - 1, floor_y, rz2 - 1, FLOOR_WOOD)
 
 
-def _build_gable_roof(b: MinecraftBuilder, x1, x2, z1, z2, roof_y):
-    """悬山顶: 两面坡(南北向坡), 东西悬山出挑
+def _build_gable_roof(b: MinecraftBuilder, x1, x2, z1, z2, roof_y,
+                      axis='x'):
+    """悬山顶: 两面坡屋顶
 
-    脊线沿 X 轴, 坡面向南北。
+    axis='x': 脊线沿X轴(东西向), 坡面向南北 (原逻辑)
+    axis='z': 脊线沿Z轴(南北向), 坡面向东西 (闺塾用)
+
+    【已修改】支持两个方向，加飞檐(dark_oak_stairs外层包裹)，脊线用stone_brick_slab
     """
     cx = (x1 + x2) // 2
     cz = (z1 + z2) // 2
-    half_z = (z2 - z1) // 2
 
-    # 逐层收缩: 从檐口到脊线
-    layers = []
-    cur_z_off = 0
-    y_off = 0
-    while cur_z_off < half_z:
-        layers.append((y_off, cz - half_z + cur_z_off, cz + half_z - cur_z_off))
-        cur_z_off += 1
-        y_off += 1
+    if axis == 'x':
+        # ---- 原逻辑：脊线沿X轴，坡面南北 ----
+        half_z = (z2 - z1) // 2
 
-    for dy, south_z, north_z in layers:
-        y = roof_y + dy
-        # 南坡
+        layers = []
+        cur_z_off = 0
+        y_off = 0
+        while cur_z_off < half_z:
+            layers.append((y_off, cz - half_z + cur_z_off, cz + half_z - cur_z_off))
+            cur_z_off += 1
+            y_off += 1
+
+        for dy, south_z, north_z in layers:
+            y = roof_y + dy
+            for x in range(x1, x2 + 1):
+                b.setblock(x, y, north_z, f"{ROOF}[facing=south,half=bottom]")
+            for x in range(x1, x2 + 1):
+                b.setblock(x, y, south_z, f"{ROOF}[facing=north,half=bottom]")
+            if south_z - 1 >= north_z + 1:
+                b.fill(x1, y, north_z + 1, x2, y, south_z - 1, ROOF_BLOCK)
+
+        ridge_y = roof_y + y_off
         for x in range(x1, x2 + 1):
-            b.setblock(x, y, north_z, f"{ROOF}[facing=south,half=bottom]")
-        # 北坡
-        for x in range(x1, x2 + 1):
-            b.setblock(x, y, south_z, f"{ROOF}[facing=north,half=bottom]")
-        # 中间填充
-        if south_z - 1 >= north_z + 1:
-            b.fill(x1, y, north_z + 1, x2, y, south_z - 1, ROOF_BLOCK)
+            b.setblock(x, ridge_y, cz, f"{ROOF_SLAB}[type=bottom]")
 
-    # 屋脊(最高层)
-    ridge_y = roof_y + y_off
-    for x in range(x1, x2 + 1):
-        b.setblock(x, ridge_y, cz, f"{ROOF_SLAB}[type=bottom]")
+    else:
+        # ---- 新逻辑：脊线沿Z轴(南北向)，坡面向东西倾斜 ----
+        half_x = (x2 - x1) // 2
+
+        # 飞檐层(roof_y - 1)：dark_oak_stairs 在最外层包裹
+        eave_y = roof_y
+        # 东西飞檐
+        for z in range(z1, z2 + 1):
+            b.setblock(x1, eave_y, z, f"{EAVE}[facing=east,half=bottom]")
+            b.setblock(x2, eave_y, z, f"{EAVE}[facing=west,half=bottom]")
+        # 南北飞檐
+        for x in range(x1 + 1, x2):
+            b.setblock(x, eave_y, z1, f"{EAVE}[facing=south,half=bottom]")
+            b.setblock(x, eave_y, z2, f"{EAVE}[facing=north,half=bottom]")
+        # 四角飞檐
+        b.setblock(x1, eave_y, z1, f"{EAVE}[facing=south,half=bottom,shape=outer_right]")
+        b.setblock(x2, eave_y, z1, f"{EAVE}[facing=south,half=bottom,shape=outer_left]")
+        b.setblock(x1, eave_y, z2, f"{EAVE}[facing=north,half=bottom,shape=outer_left]")
+        b.setblock(x2, eave_y, z2, f"{EAVE}[facing=north,half=bottom,shape=outer_right]")
+
+        # 主屋顶：从飞檐内侧开始逐层收缩
+        layers = []
+        cur_x_off = 0
+        y_off = 0
+        inner_x1 = x1 + 1  # 飞檐内侧
+        inner_x2 = x2 - 1
+        inner_half_x = (inner_x2 - inner_x1) // 2
+        inner_cx = (inner_x1 + inner_x2) // 2
+
+        while cur_x_off < inner_half_x:
+            west_x = inner_cx - inner_half_x + cur_x_off
+            east_x = inner_cx + inner_half_x - cur_x_off
+            layers.append((y_off, west_x, east_x))
+            cur_x_off += 1
+            y_off += 1
+
+        for dy, west_x, east_x in layers:
+            y = roof_y + 1 + dy  # 从飞檐上一层开始
+            # 西坡
+            for z in range(z1, z2 + 1):
+                b.setblock(west_x, y, z, f"{ROOF}[facing=east,half=bottom]")
+            # 东坡
+            for z in range(z1, z2 + 1):
+                b.setblock(east_x, y, z, f"{ROOF}[facing=west,half=bottom]")
+            # 中间填充
+            if east_x - 1 >= west_x + 1:
+                b.fill(west_x + 1, y, z1, east_x - 1, y, z2, ROOF_BLOCK)
+
+        # 屋脊(最高层)：脊线沿Z轴，用stone_brick_slab
+        ridge_y = roof_y + 1 + y_off
+        for z in range(z1, z2 + 1):
+            b.setblock(inner_cx, ridge_y, z, f"{ROOF_SLAB}[type=bottom]")
 
 
 # ══════════════════════════════════════════════════════════
@@ -529,7 +598,9 @@ def _build_gable_roof(b: MinecraftBuilder, x1, x2, z1, z2, roof_y):
 # ══════════════════════════════════════════════════════════
 
 def _build_west_corridor(b: MinecraftBuilder):
-    """西廊道: 从闺塾东端到小庭西墙, 沿z=78, 有柱有顶"""
+    """西廊道: 从闺塾东端到小庭西墙, 沿z=78, 有柱有顶
+    【已修改】廊道加宽为5格：柱Z=76和Z=80，走道Z=77~79（3格宽），屋顶Z=76~80
+    """
     print("  [9/9] 闺塾→小庭 西廊道...")
 
     lz = 78  # 廊道中心Z
@@ -537,8 +608,14 @@ def _build_west_corridor(b: MinecraftBuilder):
     pillar_h = 4
     pillar_space = 3
 
-    # 地面
-    b.fill(lx1, Y0, lz - 1, lx2, Y0, lz + 1, FLOOR_ALT)
+    # 柱子Z坐标（走道外侧各1格）
+    pz_north = 76  # 北侧柱
+    pz_south = 80  # 南侧柱
+    # 走道Z范围: 77~79（3格宽）
+
+    # 地面：整个5格宽铺地
+    b.fill(lx1, Y0, pz_north, lx2, Y0, pz_south, FLOOR_ALT)
+    # 走道中心线用主地板
     b.fill(lx1, Y0, lz, lx2, Y0, lz, FLOOR)
 
     # 柱子+梁+顶
@@ -546,28 +623,27 @@ def _build_west_corridor(b: MinecraftBuilder):
     roof_y = beam_y + 1
 
     for x in range(lx1, lx2 + 1, pillar_space):
-        # 南北两侧柱
-        for dz in [-1, 1]:
-            pz = lz + dz
+        # 南北两侧柱（在走道外侧 Z=76 和 Z=80）
+        for pz in [pz_north, pz_south]:
             b.setblock(x, Y0, pz, BASE_COL)
             b.fill(x, Y0 + 1, pz, x, Y0 + pillar_h, pz, PILLAR)
-        # 横梁
-        b.fill(x, beam_y, lz - 1, x, beam_y, lz + 1, BEAM)
+        # 横梁（跨越整个5格宽）
+        b.fill(x, beam_y, pz_north, x, beam_y, pz_south, BEAM)
 
-    # 纵梁
-    b.fill(lx1, beam_y, lz - 1, lx2, beam_y, lz - 1, BEAM)
-    b.fill(lx1, beam_y, lz + 1, lx2, beam_y, lz + 1, BEAM)
+    # 纵梁（沿柱线）
+    b.fill(lx1, beam_y, pz_north, lx2, beam_y, pz_north, BEAM)
+    b.fill(lx1, beam_y, pz_south, lx2, beam_y, pz_south, BEAM)
 
-    # 屋顶半砖
-    b.fill(lx1, roof_y, lz - 1, lx2, roof_y, lz + 1,
+    # 屋顶半砖：覆盖 Z=76~80
+    b.fill(lx1, roof_y, pz_north, lx2, roof_y, pz_south,
            f"{ROOF_SLAB}[type=bottom]")
 
-    # 栏杆(柱间)
+    # 栏杆(柱间，放在柱线上)
     for x in range(lx1, lx2 + 1):
         is_pillar = (x - lx1) % pillar_space == 0
         if not is_pillar:
-            b.setblock(x, Y0 + 1, lz - 1, RAIL)
-            b.setblock(x, Y0 + 1, lz + 1, RAIL)
+            b.setblock(x, Y0 + 1, pz_north, RAIL)
+            b.setblock(x, Y0 + 1, pz_south, RAIL)
 
     # 灯笼(每6格一盏)
     for x in range(lx1 + 3, lx2, 6):
@@ -595,7 +671,7 @@ def build_cluster_d(b: MinecraftBuilder):
     # 注册边界框
     b.register_bbox("cluster_d_main", 49, GROUND_Y, 62, 67, Y0 + 16, 89)
     b.register_bbox("cluster_d_guishu", 18, GROUND_Y, 75, 26, Y0 + 10, 81)
-    b.register_bbox("cluster_d_corridor", 26, GROUND_Y, 77, 51, Y0 + 6, 79)
+    b.register_bbox("cluster_d_corridor", 26, GROUND_Y, 76, 51, Y0 + 6, 80)
 
     print(f"  D群建造完成!")
 

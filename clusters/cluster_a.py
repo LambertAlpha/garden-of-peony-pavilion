@@ -352,11 +352,13 @@ def _build_peony_pavilion(b: MinecraftBuilder):
     roof_base_y = beam_y + 1
     _build_cuanjian_roof(b, x1, z1, x2, z2, roof_base_y)
 
-    # ── 灯笼 (四角内侧) ──
+    # ── 灯笼 (四角内侧) — P1-1 修复: 加 chain 防悬空 ──
     lantern_y = beam_y - 1
     for (px, pz) in corners:
         dx = 1 if px < cx else -1
         dz = 1 if pz < cz else -1
+        # chain 连接梁枋(beam_y)和灯笼
+        b.setblock(px + dx, beam_y, pz + dz, "minecraft:chain[axis=y]")
         b.setblock(px + dx, lantern_y, pz + dz, f"{LANTERN}[hanging=true]")
 
     # ── 中央装饰: 红毯 + 灯笼柱 ──
@@ -448,10 +450,15 @@ def _build_slope_corridor_to_peony_rail(b: MinecraftBuilder):
     z_start = 16       # 牡丹亭南墙外第一格
     z_end = 22         # 拐弯处
 
-    # Z=16~19: Y=-57 (高地), Z=20~22: Y=-58 (过渡后)
+    # P0-1 修复: 斜坡廊起点应从牡丹亭台面 Y=-55(gy+2) 平滑下降到芍药阑 Y=-58
+    # Z=16~17: -55(牡丹亭台面), Z=18: -56, Z=19: -57, Z=20~22: -58(芍药阑)
 
     for z in range(z_start, z_end + 1):
-        if z <= 19:
+        if z <= 17:
+            floor_y_here = -55  # 与牡丹亭台面(gy+2=-55)齐平
+        elif z == 18:
+            floor_y_here = -56
+        elif z == 19:
             floor_y_here = -57
         else:
             floor_y_here = -58
@@ -459,26 +466,47 @@ def _build_slope_corridor_to_peony_rail(b: MinecraftBuilder):
         # 地面
         b.fill(corridor_x1, floor_y_here, z, corridor_x2, floor_y_here, z, BASE)
 
-        # 台阶过渡 (Z=20 处设置下行台阶)
-        if z == 20:
+        # 台阶过渡: 每个下降处放台阶衔接
+        if z == 18:
+            # Z=18: -56, 上一级 Z=17: -55 → 在 Z=18 的 -55 层放下行台阶
+            b.fill(corridor_x1, -55, z, corridor_x2, -55, z,
+                   _stair(BASE_STEP, "south"))
+        elif z == 19:
+            # Z=19: -57, 上一级 Z=18: -56
+            b.fill(corridor_x1, -56, z, corridor_x2, -56, z,
+                   _stair(BASE_STEP, "south"))
+        elif z == 20:
+            # Z=20: -58, 上一级 Z=19: -57
             b.fill(corridor_x1, -57, z, corridor_x2, -57, z,
                    _stair(BASE_STEP, "south"))
 
+    # P0-1 修复: 栏杆/柱子/顶部的 Y 跟随新斜坡高度
+    def _corridor_floor_y(z):
+        """斜坡廊各 Z 坐标对应的地面 Y"""
+        if z <= 17:
+            return -55
+        elif z == 18:
+            return -56
+        elif z == 19:
+            return -57
+        else:
+            return -58
+
     # 两侧栏杆
     for z in range(z_start, z_end):  # z_end 不放栏杆(拐弯处)
-        rail_base = -57 if z <= 19 else -58
+        rail_base = _corridor_floor_y(z)
         b.setblock(corridor_x1, rail_base + 1, z, RAIL)
         b.setblock(corridor_x2, rail_base + 1, z, RAIL)
 
     # 柱子 (每4格一根, 两侧)
     for z in [z_start, z_start + 4]:
-        col_base = -57 if z <= 19 else -58
+        col_base = _corridor_floor_y(z)
         for x in [corridor_x1, corridor_x2]:
             b.fill(x, col_base + 1, z, x, col_base + 4, z, PILLAR)
 
     # 顶部: 横梁 + dark_oak_slab
     for z in range(z_start, z_end + 1):
-        col_base = -57 if z <= 19 else -58
+        col_base = _corridor_floor_y(z)
         beam_here = col_base + 4
         b.fill(corridor_x1, beam_here, z, corridor_x2, beam_here, z, BEAM)
         b.fill(corridor_x1 - 1, beam_here + 1, z, corridor_x2 + 1, beam_here + 1, z,
@@ -521,14 +549,23 @@ def _build_slope_corridor_to_peony_rail(b: MinecraftBuilder):
 # ═══════════════════════════════════════════
 
 def _build_peony_rail(b: MinecraftBuilder):
-    """芍药阑: (45~55, 22~30), Y=-58
+    """芍药阑: (45~55, 22~29), Y=-58
+    P1-3 修复: 南边界从 Z=30 改为 Z=29，避开围墙碰撞
     crimson_fence 围栏 + peony 密植
     北面留入口对接斜坡廊
     """
     print("  [5/9] 芍药阑...")
 
-    x1, z1, x2, z2 = 45, 22, 55, 30
+    x1, z1, x2, z2 = 45, 22, 55, 29  # P1-3: z2 从 30 改为 29
     gy = -58
+
+    # P1-2 修复: 填充底部空隙，防止芍药阑悬空
+    # Z=24~26 地形约 Y=-59, 需填到 -59
+    b.fill(x1, -59, 24, x2, -59, 26, DIRT)
+    # Z=28 地形更低, 填 Y=-60~-59
+    b.fill(x1, -60, 28, x2, -59, 28, DIRT)
+    # Z=29 (原 Z=30 区域附近), 填 Y=-61~-59 (注意: 这里不再到 Z=30)
+    b.fill(x1, -61, 29, x2, -59, 29, DIRT)
 
     # 地面铺草
     b.fill(x1, gy, z1, x2, gy, z2, GRASS)
@@ -908,22 +945,36 @@ def _build_slope_to_zhuoying(b: MinecraftBuilder):
     slope_x1, slope_x2 = 81, 83
     z_start, z_end = 15, 23
 
+    # P0-2 修复: 坡道终点对齐水阁台面 Y=-57(gy=-59, floor_y=gy+2=-57)
+    # Z=15~17: -57(高地), Z=18~19: -58, Z=20~21: -59(最低点),
+    # Z=22: -58(上行), Z=23: -57(对齐水阁台面)
     for z in range(z_start, z_end + 1):
         if z <= 17:
             floor_y = -57
         elif z <= 19:
             floor_y = -58
+        elif z <= 21:
+            floor_y = -59  # 谷底
+        elif z == 22:
+            floor_y = -58  # 上行台阶
         else:
-            floor_y = -59
+            floor_y = -57  # 对齐水阁台面
 
         # 铺石阶面
         b.fill(slope_x1, floor_y, z, slope_x2, floor_y, z, BASE)
 
-        # 台阶过渡
+        # 下行台阶过渡
         if z == 18:
             b.fill(slope_x1, -57, z, slope_x2, -57, z,
                    _stair(BASE_STEP, "south"))
         elif z == 20:
+            b.fill(slope_x1, -58, z, slope_x2, -58, z,
+                   _stair(BASE_STEP, "south"))
+        # 上行台阶过渡 (从南向北看是 north 方向)
+        elif z == 22:
+            b.fill(slope_x1, -59, z, slope_x2, -59, z,
+                   _stair(BASE_STEP, "south"))
+        elif z == 23:
             b.fill(slope_x1, -58, z, slope_x2, -58, z,
                    _stair(BASE_STEP, "south"))
 
@@ -933,8 +984,12 @@ def _build_slope_to_zhuoying(b: MinecraftBuilder):
             ry = -57
         elif z <= 19:
             ry = -58
-        else:
+        elif z <= 21:
             ry = -59
+        elif z == 22:
+            ry = -58
+        else:
+            ry = -57
         b.setblock(slope_x1 - 1, ry + 1, z, RAIL)
         b.setblock(slope_x2 + 1, ry + 1, z, RAIL)
 
@@ -943,9 +998,18 @@ def _build_slope_to_zhuoying(b: MinecraftBuilder):
         if z <= 19:
             b.fill(slope_x1, -59, z, slope_x2, -59, z, DIRT)
             b.fill(slope_x1, -58, z, slope_x2, -58, z, BASE)
-        else:
+        elif z <= 21:
             b.fill(slope_x1, -60, z, slope_x2, -60, z, DIRT)
             b.fill(slope_x1, -59, z, slope_x2, -59, z, BASE)
+        elif z == 22:
+            # 上行区: 填充到 -58
+            b.fill(slope_x1, -60, z, slope_x2, -60, z, DIRT)
+            b.fill(slope_x1, -59, z, slope_x2, -59, z, DIRT)
+        else:
+            # Z=23: 对齐水阁台面 -57, 填充下方
+            b.fill(slope_x1, -60, z, slope_x2, -60, z, DIRT)
+            b.fill(slope_x1, -59, z, slope_x2, -59, z, DIRT)
+            b.fill(slope_x1, -58, z, slope_x2, -58, z, BASE)
 
     b.register_bbox("slope_to_zhuoying", slope_x1 - 1, -60, z_start, slope_x2 + 1, -56, z_end)
     print(f"    坡道完成. [{b.cmd_count} cmds]")
@@ -1053,11 +1117,12 @@ def _build_zhuoying_pavilion(b: MinecraftBuilder):
     roof_base_y = beam_y + 1
     _build_gable_roof_x(b, x1, z1, x2, z2, roof_base_y)
 
-    # ── 灯笼 ──
+    # ── 灯笼 — P1-1 修复: 加 chain 防悬空 ──
     lantern_y = beam_y - 1
     for (px, pz) in [(x1, z1), (x1, z2), (x2, z1), (x2, z2)]:
         dx = 1 if px < cx else -1
         dz = 1 if pz < cz else -1
+        b.setblock(px + dx, beam_y, pz + dz, "minecraft:chain[axis=y]")
         b.setblock(px + dx, lantern_y, pz + dz, f"{LANTERN}[hanging=true]")
 
     # ── 水面装饰: 南侧水面放荷叶 ──
