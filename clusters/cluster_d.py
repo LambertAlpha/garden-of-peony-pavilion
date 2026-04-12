@@ -475,10 +475,8 @@ def _build_gui_shu(b: MinecraftBuilder):
         # 北墙
         for x in range(rx1 + 1, rx2):
             b.setblock(x, y, rz1, WALL)
-        # 南墙
+        # 南墙（全封闭，不留门——闺塾只从东面西廊进入）
         for x in range(rx1 + 1, rx2):
-            if cx - 1 <= x <= cx + 1 and y <= floor_y + 3:
-                continue  # 南面留小门
             b.setblock(x, y, rz2, WALL)
         # 东墙(X=rx2=26)：Z=77~79处留3格宽×3格高门洞
         for z in range(rz1 + 1, rz2):
@@ -508,6 +506,25 @@ def _build_gui_shu(b: MinecraftBuilder):
 
     # 木地板
     b.fill(rx1 + 1, floor_y, rz1 + 1, rx2 - 1, floor_y, rz2 - 1, FLOOR_WOOD)
+
+    # 【新增】闺塾内饰 — 书房氛围
+    fy1 = floor_y + 1  # 家具放置层
+    # 床（西墙边，红色）
+    b.setblock(rx1 + 1, fy1, cz, "minecraft:red_bed[facing=east,part=foot]")
+    b.setblock(rx1 + 1, fy1, cz - 1, "minecraft:red_bed[facing=east,part=head]")
+    # 书架（北墙边）
+    b.setblock(cx, fy1, rz1 + 1, "minecraft:bookshelf")
+    b.setblock(cx + 1, fy1, rz1 + 1, "minecraft:bookshelf")
+    b.setblock(cx, fy1 + 1, rz1 + 1, "minecraft:bookshelf")
+    b.setblock(cx + 1, fy1 + 1, rz1 + 1, "minecraft:bookshelf")
+    # 讲台（书架前）
+    b.setblock(cx, fy1, rz1 + 2, "minecraft:lectern[facing=south]")
+    # 花盆（窗边）
+    b.setblock(rx1 + 1, fy1, rz1 + 1, "minecraft:flower_pot")
+    # 红地毯（中央）
+    b.setblock(cx, floor_y, cz, "minecraft:red_carpet")
+    b.setblock(cx + 1, floor_y, cz, "minecraft:red_carpet")
+    b.setblock(cx - 1, floor_y, cz, "minecraft:red_carpet")
 
 
 def _build_gable_roof(b: MinecraftBuilder, x1, x2, z1, z2, roof_y,
