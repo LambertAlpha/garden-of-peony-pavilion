@@ -8,12 +8,13 @@
 
 import sys
 import math
+from pathlib import Path
 
-sys.path.insert(0, '/Users/lambertlin/minecraft-server/scripts')
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from builder import MinecraftBuilder, bresenham_3d, filled_circle_points
-import config_v3 as cfg
-from phase1_water import point_in_polygon
+from core.builder import MinecraftBuilder, bresenham_3d, filled_circle_points
+from config import config_v4 as cfg
+from phases.phase1_water import point_in_polygon
 
 
 # ═══════════════════════════════════════════
@@ -326,7 +327,7 @@ def _corridor_segment(b, x1, z1, x2, z2, width, roofed, pillar_h, pillar_space):
     roof_slab = "minecraft:stone_brick_slab[type=bottom]"
 
     # 计算两点间的 Bresenham 线
-    from builder import bresenham_3d
+    from core.builder import bresenham_3d
     points_3d = bresenham_3d(x1, 0, z1, x2, 0, z2)
     centerline = [(p[0], p[2]) for p in points_3d]
 

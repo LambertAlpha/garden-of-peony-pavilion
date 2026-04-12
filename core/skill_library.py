@@ -4,7 +4,7 @@
 每个技能是一个可独立执行的建筑函数（代码字符串），带描述和标签。
 
 用法:
-    from skill_library import SkillLibrary
+    from core.skill_library import SkillLibrary
     lib = SkillLibrary()
     results = lib.search("屋顶 亭子")
     code = lib.get_code("roof_hip_pointed")

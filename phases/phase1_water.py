@@ -9,11 +9,12 @@
 import sys
 import math
 import random
+from pathlib import Path
 
-sys.path.insert(0, '/Users/lambertlin/minecraft-server/scripts')
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from builder import MinecraftBuilder
-import config_v3 as cfg
+from core.builder import MinecraftBuilder
+from config import config_v4 as cfg
 
 
 # ═══════════════════════════════════════════

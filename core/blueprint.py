@@ -10,7 +10,7 @@
   4. 材质通过 PALETTE key 间接引用，蓝图不硬编码 minecraft:xxx
 
 用法:
-  from blueprint import BlueprintRenderer, PAVILION_BLUEPRINT
+  from core.blueprint import BlueprintRenderer, PAVILION_BLUEPRINT
   renderer = BlueprintRenderer(builder)
   result = renderer.render(PAVILION_BLUEPRINT, cx=58, cz=10, ground_y=-57)
 """
@@ -23,8 +23,11 @@ import re
 from typing import Any
 
 # 项目内引用 — 仅在运行时需要，类型标注用 string
-import sys; sys.path.insert(0, '/Users/lambertlin/minecraft-server/scripts')
-from blocks import PALETTE
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.blocks import PALETTE
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1744,8 +1747,8 @@ if __name__ == "__main__":
 
     print("=== 用法示例 ===")
     print("""
-from blueprint import BlueprintRenderer, PAVILION_BLUEPRINT, clone_blueprint
-from builder import MinecraftBuilder
+from core.blueprint import BlueprintRenderer, PAVILION_BLUEPRINT, clone_blueprint
+from core.builder import MinecraftBuilder
 
 with MinecraftBuilder() as b:
     renderer = BlueprintRenderer(b)

@@ -9,11 +9,13 @@
 """
 
 import sys
-sys.path.insert(0, '/Users/lambertlin/minecraft-server/scripts')
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import random
-from builder import MinecraftBuilder
-from blocks import PALETTE, GROUND_Y, BUILD_Y
+from core.builder import MinecraftBuilder
+from core.blocks import PALETTE, GROUND_Y, BUILD_Y
 
 
 # ══════════════════════════════════════════════════════════

@@ -9,11 +9,13 @@
 """
 
 import sys
-sys.path.insert(0, '/Users/lambertlin/minecraft-server/scripts')
+from pathlib import Path
 
-from builder import MinecraftBuilder
-import config_v3 as cfg
-from blocks import PALETTE
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from core.builder import MinecraftBuilder
+from config import config_v4 as cfg
+from core.blocks import PALETTE
 
 
 # ═══════════════════════════════════════════

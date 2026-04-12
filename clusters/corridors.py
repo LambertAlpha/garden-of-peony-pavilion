@@ -12,11 +12,13 @@
 """
 
 import sys
-sys.path.insert(0, '/Users/lambertlin/minecraft-server/scripts')
+from pathlib import Path
 
-from builder import MinecraftBuilder, bresenham_3d
-from blocks import PALETTE
-import config_v4 as cfg
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from core.builder import MinecraftBuilder, bresenham_3d
+from core.blocks import PALETTE
+from config import config_v4 as cfg
 
 
 # ── 材质 ──
@@ -56,7 +58,7 @@ def _ground_y_at(x, z):
 
 def _point_in_any_water(x, z, margin=1):
     """检查 (x,z) 是否在水面上"""
-    from phase1_water import point_in_polygon
+    from phases.phase1_water import point_in_polygon
     for poly in [cfg.MAIN_LAKE["shoreline"], cfg.DEEP_POOL["shoreline"]]:
         if point_in_polygon(x, z, poly):
             return True

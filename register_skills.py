@@ -8,9 +8,11 @@
 """
 
 import sys
-sys.path.insert(0, '/Users/lambertlin/minecraft-server/scripts')
+from pathlib import Path
 
-from skill_library import SkillLibrary
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from core.skill_library import SkillLibrary
 
 
 # ═══════════════════════════════════════════════════════════
@@ -492,7 +494,7 @@ def build_moon_gate(b, wall_x, center_z, radius, plane="yz",
         plane      : "yz" (东西向通行) 或 "xy" (南北向通行)
         frame_block: 圆框描边方块
     """
-    from builder import filled_circle_points
+    from core.builder import filled_circle_points
 
     build_y = -60  # 默认地面Y
 

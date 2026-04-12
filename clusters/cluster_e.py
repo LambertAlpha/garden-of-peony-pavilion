@@ -17,11 +17,13 @@
 """
 
 import sys
-sys.path.insert(0, '/Users/lambertlin/minecraft-server/scripts')
+from pathlib import Path
 
-from builder import MinecraftBuilder
-from blocks import PALETTE
-import config_v4 as cfg
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from core.builder import MinecraftBuilder
+from core.blocks import PALETTE
+from config import config_v4 as cfg
 
 
 # ── 材质快捷引用 ──

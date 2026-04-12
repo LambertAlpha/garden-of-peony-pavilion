@@ -8,12 +8,13 @@
 import sys
 import math
 import random
+from pathlib import Path
 
-sys.path.insert(0, '/Users/lambertlin/minecraft-server/scripts')
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from builder import MinecraftBuilder, bresenham_3d, filled_circle_points
-import config_v4 as cfg
-from blocks import PALETTE
+from core.builder import MinecraftBuilder, bresenham_3d, filled_circle_points
+from config import config_v4 as cfg
+from core.blocks import PALETTE
 
 # ═══════════════════════════════════════════
 # 常量
