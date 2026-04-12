@@ -246,6 +246,47 @@ def _build_courtyard(b: MinecraftBuilder):
     wz = (cz1 + cz2) // 2
     b.setblock(cx2, Y0 + 2, wz, f"{TRAPDOOR}[facing=west,half=bottom,open=true]")
 
+    # ── 小庭深院装饰 ── "小院庭深"的意境
+    # 调研：苏州园林小天井经典做法——特置太湖石 + 花街铺地 + 角隅植物 + 苔藓岁月感
+    # 参考：网师园殿春簃窗外天井（太湖石+芭蕉）、留园鹤所天井
+
+    cx = (cx1 + cx2) // 2  # X中心=58
+    cz = (cz1 + cz2) // 2  # Z中心=80
+
+    # 1) 花街铺地 — 十字纹：用 polished_andesite 在棋盘格上勾勒十字图案
+    #    中心十字(cx, cz)向四方延伸，模拟砖瓦拼花
+    for dx in range(-2, 3):
+        b.setblock(cx + dx, Y0, cz, BASE_COL)       # 东西横线
+    for dz in range(-1, 2):
+        b.setblock(cx, Y0, cz + dz, BASE_COL)       # 南北竖线
+
+    # 2) 中央太湖石 — 一主一副，错落有致（dripstone_block = 太湖石）
+    #    主石偏西一格，副石偏东，高低搭配
+    TAIHU = PALETTE["taihu_main"]      # dripstone_block
+    TAIHU_W = PALETTE["taihu_white"]   # calcite（白色点缀）
+    b.setblock(cx - 1, Y0 + 1, cz, TAIHU)       # 主石底层
+    b.setblock(cx - 1, Y0 + 2, cz, TAIHU)       # 主石中层
+    b.setblock(cx - 1, Y0 + 3, cz, TAIHU_W)     # 主石顶部（白色calcite，瘦透感）
+    b.setblock(cx, Y0 + 1, cz, TAIHU)            # 副石（矮一层）
+    b.setblock(cx, Y0 + 2, cz, TAIHU_W)          # 副石顶
+
+    # 3) 角落植物 — 东北角竹子，西南角花盆
+    #    苏州园林天井常见：翠竹、芭蕉、花盆盆景
+    BAMBOO = PALETTE["bamboo"]
+    # 东北角竹丛（X=64, Z=79 附近）
+    b.setblock(cx2 - 1, Y0 + 1, cz1 + 1, BAMBOO)
+    b.setblock(cx2 - 2, Y0 + 1, cz1 + 1, BAMBOO)
+    b.setblock(cx2 - 1, Y0 + 2, cz1 + 1, BAMBOO)
+    # 西南角花盆（X=52, Z=81）— 门洞旁
+    b.setblock(cx1 + 1, Y0 + 1, cz2 - 1, "minecraft:potted_fern")
+
+    # 4) 墙脚苔藓 — 增加岁月感
+    #    东墙根和南墙根零星放置 moss_carpet
+    MOSS_C = PALETTE["moss_carpet"]
+    for x in [cx2 - 1, cx2 - 3]:
+        b.setblock(x, Y0 + 1, cz2, MOSS_C)  # 南墙根
+    b.setblock(cx2, Y0 + 1, cz1 + 2, MOSS_C)    # 东墙根
+
 
 # ══════════════════════════════════════════════════════════
 # 5. 抄手游廊 (51~65, 72~78) — 小庭↔远香堂
@@ -394,6 +435,58 @@ def _build_yuan_xiang_hall(b: MinecraftBuilder):
 
     # 木地板
     b.fill(hx1 + 2, floor_y, front_z + 1, hx2 - 2, floor_y, back_z - 1, FLOOR_WOOD)
+
+    # ── 远香堂内饰 ── 全园最大厅堂，宴饮宾客之所
+    # 调研：远香堂为四面厅，正中匾额（文征明题），传统厅堂标配：
+    #   条案(北墙) + 八仙桌(中央) + 太师椅(两侧) + 花几/花盆(角落) + 灯笼
+    # 参考：苏州传统厅堂"四件套"——条案、八仙桌、两把太师椅
+
+    fy = floor_y + 1  # 家具放置Y层
+
+    # 1) 中央八仙桌 — 石桌(stone_brick_slab) + 四把椅子(stone_brick_stairs)
+    #    桌子位于厅堂正中偏北（面湖方向），Z = front_z + 3（约66）
+    table_z = front_z + 3
+    # 八仙桌：2x2 石砖半砖
+    b.setblock(cx - 1, fy, table_z, f"{BASE_SLAB}[type=bottom]")
+    b.setblock(cx, fy, table_z, f"{BASE_SLAB}[type=bottom]")
+    b.setblock(cx - 1, fy, table_z + 1, f"{BASE_SLAB}[type=bottom]")
+    b.setblock(cx, fy, table_z + 1, f"{BASE_SLAB}[type=bottom]")
+
+    # 太师椅：桌子东西两侧各一把（stone_brick_stairs 面向桌子）
+    b.setblock(cx - 2, fy, table_z, f"{BASE_STEP}[facing=east,half=bottom]")
+    b.setblock(cx - 2, fy, table_z + 1, f"{BASE_STEP}[facing=east,half=bottom]")
+    b.setblock(cx + 1, fy, table_z, f"{BASE_STEP}[facing=west,half=bottom]")
+    b.setblock(cx + 1, fy, table_z + 1, f"{BASE_STEP}[facing=west,half=bottom]")
+
+    # 北面椅（面向南，坐着赏湖）
+    b.setblock(cx - 1, fy, table_z - 1, f"{BASE_STEP}[facing=south,half=bottom]")
+    b.setblock(cx, fy, table_z - 1, f"{BASE_STEP}[facing=south,half=bottom]")
+
+    # 2) 南墙条案 — 传统厅堂北墙/南墙靠墙长条案
+    #    用 spruce_slab 模拟木条案，放在南墙(back_z - 1)前面
+    case_z = back_z - 2
+    for x in range(cx - 3, cx + 4):
+        b.setblock(x, fy, case_z, f"minecraft:spruce_slab[type=bottom]")
+
+    # 条案上放花盆（两端）+ 灯笼（中间）
+    b.setblock(cx - 3, fy + 1, case_z, "minecraft:potted_flowering_azalea_bush")
+    b.setblock(cx + 3, fy + 1, case_z, "minecraft:potted_flowering_azalea_bush")
+
+    # 3) 两侧花几 — 东西墙角各放花盆盆景
+    #    靠近东西墙柱之间的空间
+    b.setblock(hx1 + 2, fy, front_z + 2, "minecraft:potted_bamboo")
+    b.setblock(hx2 - 2, fy, front_z + 2, "minecraft:potted_bamboo")
+
+    # 4) 红地毯 — 中轴铺红毯，增加厅堂庄重感
+    RED_CARPET = PALETTE["red_carpet"]
+    for z in range(table_z - 2, table_z + 4):
+        b.setblock(cx - 1, floor_y, z, RED_CARPET)
+        b.setblock(cx, floor_y, z, RED_CARPET)
+
+    # 5) 入口处（南门洞内侧）放对称灯笼柱
+    #    门洞两侧各一盏落地灯笼
+    b.setblock(cx - 3, fy, back_z - 1, LANTERN)
+    b.setblock(cx + 3, fy, back_z - 1, LANTERN)
 
 
 # ══════════════════════════════════════════════════════════
