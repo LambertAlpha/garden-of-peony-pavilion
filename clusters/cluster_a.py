@@ -4,7 +4,7 @@
   1. 牡丹亭     (58,8)   15×15  Y=-57  四角攒尖
   2. 太湖石组   (80,10)  15×10  Y=-57  不规则堆叠
   3. 秋千       (76,8)   3×3    Y=-58  嵌入太湖石空地
-  4. 芍药阑     (50,26)  11×9   Y=-58  花圃围栏
+  4. 芍药阑     (50,26)  10×8   Y=-58  花圃围栏 (西界X=46避开西墙)
   5. 濯缨水阁   (82,26)  11×7   Y=-59  半水半陆悬山顶
 
 地形特征:
@@ -157,14 +157,23 @@ def _build_highland_terrain(b: MinecraftBuilder):
         # 顶面 grass
         b.fill(x_min, HIGHLAND_Y, z, x_max, HIGHLAND_Y, z, GRASS)
 
+    # P4 修复: 牡丹亭台基外围 Z=16~19 确保平整草地（散水带外区域）
+    for z in range(16, 20):
+        b.fill(48, HIGHLAND_Y, z, 68, HIGHLAND_Y, z, GRASS)
+
     # --- Z=20~30: 渐降斜坡 ---
-    # Z=20: Y=-57, Z=22: Y=-58, Z=24: Y=-59, Z=26+: Y=-60(地面)
+    # P4 修复: 改用分段线性下降，每级维持 2 格宽度，避免断崖
+    # 原算法 round() 导致 Z=24:-59, Z=26:-59, Z=28:-60, Z=29:-61(不填)
+    # 新方案: 更平缓的阶梯式下降，与芍药阑(Y=-58)协调
+    slope_profile = {
+        20: -57, 21: -57,     # 延长平台，给建筑南侧缓冲
+        22: -58, 23: -58,     # 芍药阑地面高度
+        24: -58, 25: -58,     # 保持芍药阑高度，避免断崖
+        26: -59, 27: -59,     # 缓降一级
+        28: -60, 29: -60,     # 接近标准地面
+    }
     for z in range(20, 30):
-        # 每 2~3 格 Z 下降 1 格 Y
-        progress = (z - 20) / 10.0  # 0.0 ~ 1.0
-        target_y = round(HIGHLAND_Y + progress * (GROUND_Y - HIGHLAND_Y))
-        # target_y: -57 → -61
-        target_y = max(GROUND_Y, target_y)
+        target_y = slope_profile[z]
 
         if target_y > GROUND_Y:
             b.fill(x_min, GROUND_Y + 1, z, x_max, target_y - 1, z, DIRT)
@@ -172,9 +181,13 @@ def _build_highland_terrain(b: MinecraftBuilder):
 
     # --- X 方向边缘软化 (x=42~45 和 x=95~98) ---
     for z in range(0, 25):
-        progress_z = min(1.0, (z - 20) / 10.0) if z >= 20 else 0.0
-        base_target = round(HIGHLAND_Y + progress_z * (GROUND_Y - HIGHLAND_Y))
-        base_target = max(GROUND_Y, base_target)
+        # P4 修复: 使用新的 slope_profile 计算边缘高度
+        if z < 20:
+            base_target = HIGHLAND_Y
+        elif z in slope_profile:
+            base_target = slope_profile[z]
+        else:
+            base_target = GROUND_Y
 
         if base_target <= GROUND_Y:
             continue
@@ -214,9 +227,13 @@ def _build_enclosure_walls(b: MinecraftBuilder):
     wall_h = 3  # 墙高3格（不含基座和帽）
 
     # ── 南墙 (Z=30, X=45~95) ──
-    # 确定南墙的底部Y: 斜坡区Z=30处约Y=-60
+    # P4 修复: Z=30 在斜坡末端，Z=29 地形 Y=-60，南墙底部 Y=-60
+    # 先在 Z=30 填充地基(dirt)确保墙基不悬空
+    b.fill(45, GROUND_Y, 30, 95, -60, 30, DIRT)
     south_wall_y = -60  # 南墙底部
-    sw_top = south_wall_y + wall_h  # -57
+    # P5 修复: 南墙顶部统一到 -54，与西墙帽顶一致
+    # 原为 -60+3=-57 与高地齐平，从园内高地看不到围墙
+    sw_top = HIGHLAND_Y + wall_h  # -54
 
     # 基座层 (stone_bricks)
     b.fill(45, south_wall_y, 30, 95, south_wall_y, 30, WALL_BASE)
@@ -237,18 +254,21 @@ def _build_enclosure_walls(b: MinecraftBuilder):
                     b.setblock(bx, by, 30, AIR)
 
     # ── 西墙 (X=45, Z=0~30) ──
-    # 西墙沿假山地形，底部跟随地形高度
-    # Z=0~20: 地形顶 Y=-57, 墙从 -57 起
-    # Z=20~30: 渐降
+    # P4 修复: 西墙跟随新的 slope_profile，确保围墙基座建在当地地面高度上
+    _wall_slope = {
+        20: -57, 21: -57, 22: -58, 23: -58,
+        24: -58, 25: -58, 26: -59, 27: -59,
+        28: -60, 29: -60, 30: -60,
+    }
     for z in range(0, 31):
         if z < 20:
             wall_base_y = HIGHLAND_Y  # -57
         else:
-            progress = (z - 20) / 10.0
-            wall_base_y = round(HIGHLAND_Y + progress * (GROUND_Y - HIGHLAND_Y))
-            wall_base_y = max(GROUND_Y, wall_base_y)
+            wall_base_y = _wall_slope.get(z, GROUND_Y)
 
-        wt = wall_base_y + wall_h
+        # P5 修复: 围墙顶部统一为高地区帽顶高度(-54)，渐降区墙体自动变高
+        # 否则从高地看过去围墙越来越矮，到Z=28几乎齐平高地，失去围合效果
+        wt = HIGHLAND_Y + wall_h  # -54，统一帽顶
         b.setblock(45, wall_base_y, z, WALL_BASE)
         if wt - 1 >= wall_base_y + 1:
             b.fill(45, wall_base_y + 1, z, 45, wt - 1, z, WALL_BLOCK)
@@ -469,17 +489,21 @@ def _build_cuanjian_roof(b, x1, z1, x2, z2, base_y):
 # ═══════════════════════════════════════════
 
 def _build_slope_corridor_to_peony_rail(b: MinecraftBuilder):
-    """斜坡廊: 从牡丹亭南柱(Z=15)向南延伸, 再向西拐到芍药阑(Z=22), Y=-57降→-58
+    """斜坡廊: 从牡丹亭南柱(Z=15)向南延伸, 再向西拐到芍药阑(Z=22), Y=-55降→-58
 
     路线:
-    - 南段(直行): x=56~60, Z=16→22, Y=-57 降→ -58
+    - 南段(直行): x=56~60, Z=16→22, Y=-55 降→ -58
     - 西转段(L拐): Z=22, x=55→50(芍药阑入口), Y=-58
 
     特征:
     - 从牡丹亭南面柱子直接延伸（零间隙）
     - 宽5格
-    - 每2格Z下降1级台阶
+    - Z=18/19/20 各下降1级台阶
     - 两侧绯红栏杆 + 有顶
+    - 柱高5格, beam 基于站立面(standing_y)+4, 保证全程净空 >= 3 格
+
+    P6 修复: 柱高从4改为5, beam 基于 standing_y 而非 floor_y,
+    解决台阶处净空只有2格导致玩家被屋顶卡住的问题。
     """
     print("  [4/9] 牡丹亭→芍药阑 斜坡廊...")
 
@@ -489,37 +513,11 @@ def _build_slope_corridor_to_peony_rail(b: MinecraftBuilder):
     z_start = 16       # 牡丹亭南墙外第一格
     z_end = 22         # 拐弯处
 
-    # P0-1 修复: 斜坡廊起点应从牡丹亭台面 Y=-55(gy+2) 平滑下降到芍药阑 Y=-58
+    # P6: 柱高从4改为5, 保证台阶处净空充足
+    PILLAR_H = 5
+
+    # 斜坡廊地面高度表
     # Z=16~17: -55(牡丹亭台面), Z=18: -56, Z=19: -57, Z=20~22: -58(芍药阑)
-
-    for z in range(z_start, z_end + 1):
-        if z <= 17:
-            floor_y_here = -55  # 与牡丹亭台面(gy+2=-55)齐平
-        elif z == 18:
-            floor_y_here = -56
-        elif z == 19:
-            floor_y_here = -57
-        else:
-            floor_y_here = -58
-
-        # 地面
-        b.fill(corridor_x1, floor_y_here, z, corridor_x2, floor_y_here, z, BASE)
-
-        # 台阶过渡: 每个下降处放台阶衔接
-        if z == 18:
-            # Z=18: -56, 上一级 Z=17: -55 → 在 Z=18 的 -55 层放下行台阶
-            b.fill(corridor_x1, -55, z, corridor_x2, -55, z,
-                   _stair(BASE_STEP, "south"))
-        elif z == 19:
-            # Z=19: -57, 上一级 Z=18: -56
-            b.fill(corridor_x1, -56, z, corridor_x2, -56, z,
-                   _stair(BASE_STEP, "south"))
-        elif z == 20:
-            # Z=20: -58, 上一级 Z=19: -57
-            b.fill(corridor_x1, -57, z, corridor_x2, -57, z,
-                   _stair(BASE_STEP, "south"))
-
-    # P0-1 修复: 栏杆/柱子/顶部的 Y 跟随新斜坡高度
     def _corridor_floor_y(z):
         """斜坡廊各 Z 坐标对应的地面 Y"""
         if z <= 17:
@@ -531,24 +529,75 @@ def _build_slope_corridor_to_peony_rail(b: MinecraftBuilder):
         else:
             return -58
 
-    # 两侧栏杆
+    def _corridor_standing_y(z):
+        """斜坡廊各 Z 坐标的最高站立面 Y (台阶处比 floor 高 1 格)
+
+        beam 应基于此值计算, 而非 floor_y, 否则台阶处净空不足。
+        净空公式: beam底(standing_y+4) - 人脚(standing_y+1) = 3格 > 1.8(人高)
+        """
+        fy = _corridor_floor_y(z)
+        # Z=18/19/20 有台阶, 台阶放在 fy+1
+        if z in (18, 19, 20):
+            return fy + 1
+        return fy
+
+    # ── 地面铺设 + 台阶 ──
+    for z in range(z_start, z_end + 1):
+        floor_y_here = _corridor_floor_y(z)
+
+        # 填实地面下方 (防止斜坡处地面悬空, 从假山高地顶面往上填)
+        if floor_y_here > HIGHLAND_Y:
+            b.fill(corridor_x1, HIGHLAND_Y, z,
+                   corridor_x2, floor_y_here - 1, z, DIRT)
+
+        # 地面
+        b.fill(corridor_x1, floor_y_here, z,
+               corridor_x2, floor_y_here, z, BASE)
+
+        # 台阶过渡: 每个下降处放台阶衔接
+        if z == 18:
+            # Z=18: floor=-56, 上一级 Z=17: floor=-55
+            # 在 Y=-55 放 facing=south 下行台阶
+            b.fill(corridor_x1, -55, z, corridor_x2, -55, z,
+                   _stair(BASE_STEP, "south"))
+        elif z == 19:
+            # Z=19: floor=-57, 上一级 Z=18: floor=-56
+            b.fill(corridor_x1, -56, z, corridor_x2, -56, z,
+                   _stair(BASE_STEP, "south"))
+        elif z == 20:
+            # Z=20: floor=-58, 上一级 Z=19: floor=-57
+            b.fill(corridor_x1, -57, z, corridor_x2, -57, z,
+                   _stair(BASE_STEP, "south"))
+
+    # ── 清除旧屋顶残留 ──
+    # 旧版 beam 在 floor_y+4, slab 在 floor_y+5; 新版升高了
+    # 先清除旧高度的 beam/slab, 再重建新的
+    for z in range(z_start, z_end + 1):
+        old_beam_y = _corridor_floor_y(z) + 4
+        b.fill(corridor_x1 - 1, old_beam_y, z,
+               corridor_x2 + 1, old_beam_y + 1, z, AIR)
+
+    # ── 两侧栏杆 ──
     for z in range(z_start, z_end):  # z_end 不放栏杆(拐弯处)
         rail_base = _corridor_floor_y(z)
         b.setblock(corridor_x1, rail_base + 1, z, RAIL)
         b.setblock(corridor_x2, rail_base + 1, z, RAIL)
 
-    # 柱子 (每4格一根, 两侧)
+    # ── 柱子 (每4格一根, 两侧, 柱高 PILLAR_H=5) ──
     for z in [z_start, z_start + 4]:
         col_base = _corridor_floor_y(z)
         for x in [corridor_x1, corridor_x2]:
-            b.fill(x, col_base + 1, z, x, col_base + 4, z, PILLAR)
+            b.fill(x, col_base + 1, z, x, col_base + PILLAR_H, z, PILLAR)
 
-    # 顶部: 横梁 + dark_oak_slab
+    # ── 顶部: 横梁 + dark_oak_slab ──
+    # beam 基于 standing_y (台阶处实际站立面) + 4
+    # 净空 = beam底(standing_y+4) - 脚底(standing_y+1) = 3 格, 人高1.8, 余量1.2
     for z in range(z_start, z_end + 1):
-        col_base = _corridor_floor_y(z)
-        beam_here = col_base + 4
+        stand_y = _corridor_standing_y(z)
+        beam_here = stand_y + 4
         b.fill(corridor_x1, beam_here, z, corridor_x2, beam_here, z, BEAM)
-        b.fill(corridor_x1 - 1, beam_here + 1, z, corridor_x2 + 1, beam_here + 1, z,
+        b.fill(corridor_x1 - 1, beam_here + 1, z,
+               corridor_x2 + 1, beam_here + 1, z,
                _slab(EAVE_SLAB, "bottom"))
 
     # ── 西转段: Z=22, x=55→50 向西连接芍药阑 ──
@@ -556,6 +605,11 @@ def _build_slope_corridor_to_peony_rail(b: MinecraftBuilder):
     turn_z = 22
     turn_x_start = 55  # 南段西墙
     turn_x_end = 51    # 芍药阑入口(cx=50, 入口50±1)
+
+    # 清除西转段旧屋顶残留 (旧 beam 在 turn_y+4=-54)
+    old_turn_beam = turn_y + 4
+    b.fill(turn_x_end - 1, old_turn_beam, turn_z - 1,
+           turn_x_start + 1, old_turn_beam + 1, turn_z + 1, AIR)
 
     # 地面
     b.fill(turn_x_end, turn_y, turn_z, turn_x_start, turn_y, turn_z, BASE)
@@ -567,19 +621,19 @@ def _build_slope_corridor_to_peony_rail(b: MinecraftBuilder):
     b.fill(turn_x_end, turn_y + 1, turn_z - 1, turn_x_start, turn_y + 1, turn_z - 1, RAIL)
     b.fill(turn_x_end, turn_y + 1, turn_z + 1, turn_x_start, turn_y + 1, turn_z + 1, RAIL)
 
-    # 柱子 (两端)
+    # 柱子 (两端, 柱高同步为 PILLAR_H=5)
     for x in [turn_x_end, turn_x_start]:
-        b.fill(x, turn_y + 1, turn_z - 1, x, turn_y + 4, turn_z - 1, PILLAR)
-        b.fill(x, turn_y + 1, turn_z + 1, x, turn_y + 4, turn_z + 1, PILLAR)
+        b.fill(x, turn_y + 1, turn_z - 1, x, turn_y + PILLAR_H, turn_z - 1, PILLAR)
+        b.fill(x, turn_y + 1, turn_z + 1, x, turn_y + PILLAR_H, turn_z + 1, PILLAR)
 
-    # 顶
-    beam_w = turn_y + 4
+    # 顶 (西转段无台阶, standing_y = turn_y)
+    beam_w = turn_y + PILLAR_H
     b.fill(turn_x_end, beam_w, turn_z - 1, turn_x_start, beam_w, turn_z + 1, BEAM)
     b.fill(turn_x_end - 1, beam_w + 1, turn_z - 1, turn_x_start + 1, beam_w + 1, turn_z + 1,
            _slab(EAVE_SLAB, "bottom"))
 
     b.register_bbox("slope_corridor_peony",
-                     turn_x_end - 1, -58, z_start, corridor_x2 + 1, -51, z_end + 1)
+                     turn_x_end - 1, -58, z_start, corridor_x2 + 1, -50, z_end + 1)
     print(f"    斜坡廊完成. [{b.cmd_count} cmds]")
 
 
@@ -588,23 +642,24 @@ def _build_slope_corridor_to_peony_rail(b: MinecraftBuilder):
 # ═══════════════════════════════════════════
 
 def _build_peony_rail(b: MinecraftBuilder):
-    """芍药阑: (45~55, 22~29), Y=-58
+    """芍药阑: (46~55, 22~29), Y=-58
     P1-3 修复: 南边界从 Z=30 改为 Z=29，避开围墙碰撞
+    P5 修复: 西界从 X=45 缩到 X=46，避免栅栏和西墙(X=45)重叠
     crimson_fence 围栏 + peony 密植
     北面留入口对接斜坡廊
     """
     print("  [5/9] 芍药阑...")
 
-    x1, z1, x2, z2 = 45, 22, 55, 29  # P1-3: z2 从 30 改为 29
+    # 修复：芍药阑西界从 X=45 缩到 X=46，避免和西墙(X=45)栅栏重叠
+    x1, z1, x2, z2 = 46, 22, 55, 29  # P1-3: z2 从 30 改为 29; 西界从 45 改为 46
     gy = -58
 
-    # P1-2 修复: 填充底部空隙，防止芍药阑悬空
-    # Z=24~26 地形约 Y=-59, 需填到 -59
-    b.fill(x1, -59, 24, x2, -59, 26, DIRT)
-    # Z=28 地形更低, 填 Y=-60~-59
-    b.fill(x1, -60, 28, x2, -59, 28, DIRT)
-    # Z=29 (原 Z=30 区域附近), 填 Y=-61~-59 (注意: 这里不再到 Z=30)
-    b.fill(x1, -61, 29, x2, -59, 29, DIRT)
+    # P4 修复: 根据新的 slope_profile 填充芍药阑底部，确保平缓过渡不悬���
+    # Z=22~25: 高地地形已是 Y=-58，与芍药阑齐平，无需额外填充
+    # Z=26~27: 高地地形 Y=-59，需填 dirt 到 Y=-59 支撑芍药阑 Y=-58
+    b.fill(x1, -59, 26, x2, -59, 27, DIRT)
+    # Z=28~29: 高地地形 Y=-60，需填 dirt 从 -60 到 -59 支撑芍药阑 Y=-58
+    b.fill(x1, -60, 28, x2, -59, 29, DIRT)
 
     # 地面铺草
     b.fill(x1, gy, z1, x2, gy, z2, GRASS)
@@ -984,6 +1039,15 @@ def _build_slope_to_zhuoying(b: MinecraftBuilder):
     slope_x1, slope_x2 = 81, 83
     z_start, z_end = 15, 23
 
+    # P5 修复: 先清除坡道全程范围内所有残留方块
+    # 太湖石散石(如 X=81,Y=-56,Z=15)和苔藓/苔藓地毯会阻挡坡道
+    # 清除范围: X=80~84(含栏杆位), Z=15~23, Y=-56~-50(坡道面上方空间)
+    b.fill(slope_x1 - 1, -56, z_start, slope_x2 + 1, -50, z_end, AIR)
+    # 清除太湖石端(Z=15~17)坡道面层可能被苔藓覆盖的方块
+    for z in range(z_start, z_start + 3):
+        b.fill(slope_x1, -57, z, slope_x2, -57, z, AIR)
+        b.fill(slope_x1, -56, z, slope_x2, -56, z, AIR)
+
     # P0-2 修复: 坡道终点对齐水阁台面 Y=-57(gy=-59, floor_y=gy+2=-57)
     # Z=15~17: -57(高地), Z=18~19: -58, Z=20~21: -59(最低点),
     # Z=22: -58(上行), Z=23: -57(对齐水阁台面)
@@ -1294,27 +1358,42 @@ def _build_swing_step(b: MinecraftBuilder):
 # ═══════════════════════════════════════════
 
 def _build_path_moongate_to_pavilion(b: MinecraftBuilder):
-    """P3-1: 从西墙月洞门(X=45, Z=15)到牡丹亭西入口(X=49, Z=6~10)铺装石板路
+    """P3-1: 从西墙月洞门(X=45, Z=15)到牡丹亭西入口(X=50, Z=6~10)铺装石板路
 
+    修复：原来只铺了靠近牡丹亭的一小段(X=46~50, Z=7~9)，
+    月洞门(Z=15)到牡丹亭(Z=9)之间完全没路。
+    现改为 L 形路径：
+      - 纵段: X=46~48(3格宽), Z=9~14, 从月洞门内侧向北走
+      - 横段: X=46~50, Z=7~9(3格宽), 东西走向接牡丹亭西入口
     月洞门落地 Y=-57(高地地面), 牡丹亭台面 Y=-55
-    路径: X=46~49, Z=8(牡丹亭中轴cz=8), 宽3格(Z=7~9)
-    到台面有台阶(修改1已在西入口放了台阶)
     """
     print("  [P3-1] 月洞门→牡丹亭路...")
 
     gy = -57  # 高地地面
-    path_z_center = 8  # 对齐牡丹亭 cz
 
-    # 铺装路面: X=46~50, Z=7~9, Y=-57 (石砖+碎石交替)
-    for x in range(46, 51):
-        for z in range(path_z_center - 1, path_z_center + 2):
+    # ── 纵段: 从月洞门内侧(X=46)向北走到牡丹亭纬度 ──
+    # 月洞门开口在 Z=12~18(圆心Z=15, 半径3)，从 Z=14 开始铺路(门内)
+    # 到 Z=9 与横段汇合，宽3格 X=46~48
+    for z in range(9, 15):  # Z=9~14
+        for x in range(46, 49):  # 3格宽
             block = BASE if (x + z) % 2 == 0 else BASE_COL
             b.setblock(x, gy, z, block)
 
-    # 两侧用苔石装饰边缘
+    # 纵段东侧苔石装饰（西侧X=45是围墙，不放苔石）
+    for z in range(9, 15):
+        b.setblock(49, gy, z, MOSSY_CB)   # 东侧
+
+    # ── 横段: 东西走向接牡丹亭西入口 ──
+    # X=46~50, Z=7~9, 牡丹亭西入口在 X=51(台阶在X=50)
     for x in range(46, 51):
-        b.setblock(x, gy, path_z_center - 2, MOSSY_CB)
-        b.setblock(x, gy, path_z_center + 2, MOSSY_CB)
+        for z in range(7, 10):  # 3格宽
+            block = BASE if (x + z) % 2 == 0 else BASE_COL
+            b.setblock(x, gy, z, block)
+
+    # 横段两侧苔石装饰
+    for x in range(46, 51):
+        b.setblock(x, gy, 6, MOSSY_CB)   # 北侧
+        b.setblock(x, gy, 10, MOSSY_CB)  # 南侧
 
     print(f"    月洞门→牡丹亭路完成. [{b.cmd_count} cmds]")
 
@@ -1428,6 +1507,10 @@ def _build_moon_gate_taihu_to_zhuoying(b: MinecraftBuilder):
                 bx = gate_cx + dx
                 by = gate_cy + dy
                 b.setblock(bx, by, gate_z, AIR)
+
+    # P5 修复: 确保坡道 3 格宽(X=81~83)范围内通行完全无阻
+    # 清除坡道范围内月洞门白墙残留（圆洞未能覆盖的 X=81/83, Y=-54 等位置）
+    b.fill(81, -57, gate_z, 83, -53, gate_z, AIR)
 
     # 确保坡道地面不被墙覆盖: 重新铺坡道面
     b.fill(81, -58, gate_z, 83, -58, gate_z, BASE)

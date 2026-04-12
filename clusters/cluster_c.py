@@ -131,13 +131,18 @@ def build_cluster_c(b: MinecraftBuilder):
     # 东墙封 Z=55~56（Z=51 和 Z=57 是柱位，不需要墙）
     b.fill(TY_X2, pillar_b, 55,
            TY_X2, pillar_t, TY_Z2 - 1, WALL)  # Z=55~56
-    # 【修改2】东墙门洞：Z=52~54, Y=-59~-57（3格宽×3格高）
-    # 先封 Z=52~54 段的墙体（确保有墙可开洞）
-    b.fill(TY_X2, pillar_b, 52,
-           TY_X2, pillar_t, 54, WALL)
-    # 再开门洞：清除 Z=52~54, Y=pillar_b ~ pillar_b+2（即 -59~-57，3格高通行）
-    b.fill(TY_X2, pillar_b, 52,
-           TY_X2, pillar_b + 2, 54, "minecraft:air")  # 门洞3格宽×3格高
+    # 【修复】东墙门洞：Z=52~54, 3格宽×3格高
+    # 门洞上方封墙（floor_y+4 到 pillar_t），下方3格(floor_y+1~+3)留空通行
+    # 之前从 pillar_b(=floor_y) 开始清空，把地面也挖了，玩家会"陷进去"
+    b.fill(TY_X2, floor_y + 4, 52,
+           TY_X2, pillar_t, 54, WALL)  # 门洞上方封墙
+    # 门洞通行空间：floor_y+1 ~ floor_y+3 确保为空气
+    b.fill(TY_X2, floor_y + 1, 52,
+           TY_X2, floor_y + 3, 54, "minecraft:air")  # 门洞3格宽×3格高
+    # 确保门洞处地面连续（补回 floor_y 层地面方块，防止"陷进去"）
+    door_floor_block = FLOOR_ALT if (TY_X2 % 2 == 1) else FLOOR
+    b.fill(TY_X2, floor_y, 52,
+           TY_X2, floor_y, 54, door_floor_block)  # 门洞地面平整
 
     # ── 3g. 悬山顶 ──
     # 悬山顶沿 X 轴（东西）为山墙面，Z 轴为正脊走向
@@ -299,27 +304,43 @@ def build_cluster_c(b: MinecraftBuilder):
     b.setblock(52, beam_y - 1, 53, f"{LANTERN}[hanging=true]")
 
     # ================================================================
-    # 7. 【修改3】远香堂→C群 连接石径（露天 dirt_path）
+    # 7. 【修复】远香堂→C群 连接石径（露天 dirt_path）
     # ================================================================
-    # 远香堂北面 Z=62，C群南面 Z=57，中间约5格空地
-    # 从 C群东南角(X=42~43) 向南铺 2格宽 dirt_path 到 Z=62
-    print("  [7/7] 远香堂连接石径...")
+    # 远香堂 X:49~67, Z:62~72，北面(Z=62)朝湖开敞
+    # C群南端 Z=57。石径从 C群(X=42~43, Z=57) 向南到 Z=62，
+    # 再沿 Z=62 向东延伸到远香堂西北角(X=49)
+    # 远香堂北面是临湖开敞面，从西北角(X=49,Z=62)转入石径
+    print("  [7/8] 远香堂连接石径...")
     PATH_BLOCK = "minecraft:dirt_path"
-    # 石径宽2格：X=42, 43；从 Z=57 向南铺到 Z=62
-    for z in range(57, 63):  # Z=57~62，共6格长
+
+    # ── 7a. 南北段：X=42~43, Z=57~62（C群→远香堂纬度）──
+    for z in range(57, 63):  # Z=57~62
         b.setblock(42, floor_y, z, PATH_BLOCK)
         b.setblock(43, floor_y, z, PATH_BLOCK)
-    # 石径下方补 dirt（dirt_path 需要 dirt/grass_block 支撑，否则会变回 dirt）
+    # dirt_path 需要 dirt 支撑
     for z in range(57, 63):
         b.setblock(42, ground_y, z, "minecraft:dirt")
         b.setblock(43, ground_y, z, "minecraft:dirt")
 
+    # ── 7b. 东西段：沿 Z=62 从 X=44 向东延伸到 X=49（远香堂西北角）──
+    # 宽度2格：Z=62~63，确保走路不会掉下去
+    for x in range(44, 50):  # X=44~49
+        for z in [62, 63]:
+            b.setblock(x, floor_y, z, PATH_BLOCK)
+            b.setblock(x, ground_y, z, "minecraft:dirt")
+
+    # ── 7c. 在远香堂西北角(X=49, Z=62~63)放踏步，衔接台基高差 ──
+    # 远香堂台基在 Y0(=-60)，台基楼梯在 Y0+1(=-59)
+    # 石径在 floor_y(=-59)，与台基楼梯同高，无高差，直接走上去
+    # 但需要确保 X=49 处的台基楼梯朝向正确（朝西，方便从石径走上来）
+    # 这部分在 cluster_d.py 中修改
+
     # ================================================================
-    # 注册边界框（南侧扩展到 Z=62 以覆盖石径）
+    # 注册边界框（南侧扩展到 Z=63 以覆盖石径 L 形路径）
     # ================================================================
     b.register_bbox("cluster_c",
                     X_MIN - 1, base_y, Z_MIN - 1,
-                    X_MAX + 1, roof_y + 5, max(Z_MAX, 62) + 1)
+                    X_MAX + 1, roof_y + 5, max(Z_MAX, 63) + 1)
 
     cmd_used = b.cmd_count - cmd_start
     print(f"  C群建造完成! ({cmd_used} commands)")

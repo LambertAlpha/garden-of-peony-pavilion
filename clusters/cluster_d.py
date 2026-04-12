@@ -307,13 +307,22 @@ def _build_cloister(b: MinecraftBuilder):
     b.fill(gx1, Y0, gz1, gx2, Y0, gz2, FLOOR_ALT)
 
     # 东西两侧廊道: 各宽3格
+    # 【修复】西侧(X=51)在Z=77~78处跳过柱子和栏杆，避免阻挡西廊入口门洞(Z=77~79)
+    west_door_zs = {77, 78}  # 西廊门洞在Z=77~79，抄手游廊范围内为Z=77~78
+
     for side_x, other_x in [(gx1, gx1 + 2), (gx2 - 2, gx2)]:
+        is_west_side = (side_x == gx1)  # 西侧廊道需要避让门洞
+
         # 柱子: 沿z每3格
         for pz in range(gz1, gz2 + 1, 3):
-            # 外侧柱
-            b.setblock(side_x, Y0, pz, BASE_COL)
-            b.fill(side_x, Y0 + 1, pz, side_x, Y0 + pillar_h, pz, PILLAR)
-            # 内侧柱
+            # 【修复】西侧外柱Z=78处跳过，为西廊入口让出通道
+            if is_west_side and pz in west_door_zs:
+                pass  # 跳过外侧柱，但内侧柱保留（不影响通行）
+            else:
+                # 外侧柱
+                b.setblock(side_x, Y0, pz, BASE_COL)
+                b.fill(side_x, Y0 + 1, pz, side_x, Y0 + pillar_h, pz, PILLAR)
+            # 内侧柱（始终保留）
             b.setblock(other_x, Y0, pz, BASE_COL)
             b.fill(other_x, Y0 + 1, pz, other_x, Y0 + pillar_h, pz, PILLAR)
 
@@ -323,7 +332,12 @@ def _build_cloister(b: MinecraftBuilder):
             b.fill(side_x, beam_y, pz, other_x, beam_y, pz, BEAM)
 
         # 纵梁
-        b.fill(side_x, beam_y, gz1, side_x, beam_y, gz2, BEAM)
+        # 【修复】西侧纵梁在门洞处中断：Z=72~76 和 Z=79~78(无)，避免梁挡头
+        if is_west_side:
+            b.fill(side_x, beam_y, gz1, side_x, beam_y, 76, BEAM)  # 北段纵梁到Z=76
+            # Z=77~78段不放外侧纵梁，门洞上方留空
+        else:
+            b.fill(side_x, beam_y, gz1, side_x, beam_y, gz2, BEAM)
         b.fill(other_x, beam_y, gz1, other_x, beam_y, gz2, BEAM)
 
         # 屋顶半砖
@@ -333,6 +347,9 @@ def _build_cloister(b: MinecraftBuilder):
 
         # 栏杆(外侧柱间)
         for pz in range(gz1, gz2 + 1):
+            # 【修复】西侧栏杆在门洞区域(Z=77~78)跳过
+            if is_west_side and pz in west_door_zs:
+                continue
             is_pillar = (pz - gz1) % 3 == 0
             if not is_pillar:
                 b.setblock(side_x, Y0 + 1, pz, RAIL)
@@ -377,6 +394,13 @@ def _build_yuan_xiang_hall(b: MinecraftBuilder):
     for x in range(cx - 2, cx + 3):
         b.setblock(x, Y0, hz1 - 1, f"{BASE_STEP}[facing=south,half=bottom]")
         b.setblock(x, Y0 + 1, hz1, f"{BASE_STEP}[facing=south,half=bottom]")
+
+    # 【修复】西北角通道口(X=49, Z=62~63)：连接C群石径
+    # C群石径(dirt_path)在 Y0+1(=-59)层从西面过来
+    # 将 X=49, Z=62~63 的台基楼梯从 half=top 改为 half=bottom+facing=west
+    # half=bottom 的楼梯可以从西面直接走上去，无需跳跃
+    for z in [hz1, hz1 + 1]:  # Z=62, 63
+        b.setblock(hx1, Y0 + 1, z, f"{BASE_STEP}[facing=west,half=bottom]")  # 可走踏步
 
     # -- 柱子: 前后各一排, 间距4格 --
     pillar_xs = [51, 55, 58, 61, 65]
