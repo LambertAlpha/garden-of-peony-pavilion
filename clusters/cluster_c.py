@@ -8,7 +8,7 @@
 坐标来源 (config_v4):
   听雨轩:   cx=34, cz=54, 9x7  → X[30,38] Z[51,57]
   荼蘼花架: cx=50, cz=53, 12x4 → X[44,56] Z[51,55]
-  连接段:   X[38,44] Z[52,54]  （听雨轩东墙→花架西端）
+  连接段:   X[38,44] Z[51,55]  （听雨轩东墙→花架西端，3格宽走道 Z=52~54）
 """
 
 import sys
@@ -56,7 +56,7 @@ def build_cluster_c(b: MinecraftBuilder):
 
     # ── 整体范围 ──
     # 听雨轩: X[30,38] Z[51,57]
-    # 连接段: X[38,44] Z[52,54]
+    # 连接段: X[38,44] Z[51,55]（柱在 Z=51,55，走道 Z=52~54 三格宽）
     # 荼蘼花架: X[44,56] Z[51,55]
     X_MIN, X_MAX = 30, 56
     Z_MIN, Z_MAX = 51, 57
@@ -127,12 +127,17 @@ def build_cluster_c(b: MinecraftBuilder):
     b.fill(TY_X1, pillar_b, TY_Z1 + 1,
            TY_X1, pillar_t, TY_Z2 - 1, WALL)
 
-    # ── 3f. 东墙(X=38) — Z=52~54 段留柱子开口给连接段 ──
-    # 东墙上半段 Z=51+1 到 Z=52-1 = Z=51+1=52... 只在 Z=55~56 段封墙
-    # 即封 Z∈[55, 56]（Z=51 和 Z=57 是柱位，不需要墙）
+    # ── 3f. 东墙(X=38) — Z=52~54 段开门洞对准3格宽走道 ──
+    # 东墙封 Z=55~56（Z=51 和 Z=57 是柱位，不需要墙）
     b.fill(TY_X2, pillar_b, 55,
            TY_X2, pillar_t, TY_Z2 - 1, WALL)  # Z=55~56
-    # Z=52~54 段只有柱子(x=38)，上面已建，保持开口通向连接段
+    # 【修改2】东墙门洞：Z=52~54, Y=-59~-57（3格宽×3格高）
+    # 先封 Z=52~54 段的墙体（确保有墙可开洞）
+    b.fill(TY_X2, pillar_b, 52,
+           TY_X2, pillar_t, 54, WALL)
+    # 再开门洞：清除 Z=52~54, Y=pillar_b ~ pillar_b+2（即 -59~-57，3格高通行）
+    b.fill(TY_X2, pillar_b, 52,
+           TY_X2, pillar_b + 2, 54, "minecraft:air")  # 门洞3格宽×3格高
 
     # ── 3g. 悬山顶 ──
     # 悬山顶沿 X 轴（东西）为山墙面，Z 轴为正脊走向
@@ -184,38 +189,39 @@ def build_cluster_c(b: MinecraftBuilder):
             b.fill(TY_X1, layer, z_n, TY_X2, layer, z_s, ROOF_BLOCK)
 
     # ================================================================
-    # 4. 连接段 (X[38,44] Z[52,54])
+    # 4. 连接段 (X[38,44] Z[51,55]) — 走道3格宽 Z=52~54
     # ================================================================
     print("  [4/6] 连接花架段...")
 
     CONN_X1, CONN_X2 = 38, 44
-    CONN_Z1, CONN_Z2 = 52, 54
+    # 【修改1】柱子从 Z=52,54 移到 Z=51,55，走道加宽为 Z=52~54 三格宽
+    CONN_Z1, CONN_Z2 = 51, 55
 
     # ── 4a. 柱子：x=40, 42, 44（x=38 复用听雨轩东墙角柱）──
     conn_pillar_xs = [40, 42, 44]
     for px in conn_pillar_xs:
-        # 南北各一根柱（Z=52 和 Z=54）
+        # 南北各一根柱（Z=51 和 Z=55），走道 Z=52~54 保持畅通
         b.fill(px, pillar_b, CONN_Z1, px, pillar_t, CONN_Z1, PILLAR)
         b.fill(px, pillar_b, CONN_Z2, px, pillar_t, CONN_Z2, PILLAR)
 
     # ── 4b. 横梁连接 ──
-    # 北横梁 Z=52
+    # 北横梁 Z=51
     b.fill(CONN_X1, beam_y, CONN_Z1, CONN_X2, beam_y, CONN_Z1, BEAM)
-    # 南横梁 Z=54
+    # 南横梁 Z=55
     b.fill(CONN_X1, beam_y, CONN_Z2, CONN_X2, beam_y, CONN_Z2, BEAM)
 
-    # ── 4c. 顶部半砖花架顶 ──
+    # ── 4c. 顶部半砖花架顶（覆盖 Z=51~55 整个连接段宽度）──
     b.fill(CONN_X1, beam_y + 1, CONN_Z1,
            CONN_X2, beam_y + 1, CONN_Z2, ROOF_SLAB)
 
-    # ── 4d. vine 垂挂（南北两侧下挂）──
+    # ── 4d. vine 垂挂（南北两侧外挂）──
     for x in range(CONN_X1 + 1, CONN_X2):
-        # 北侧 vine（挂在 Z=52-1=51 面上，朝南的面）
+        # 北侧 vine（挂在 Z=50 面上，朝南的面）
         b.setblock(x, beam_y, CONN_Z1 - 1,
                    f"{VINE}[south=true]")
         b.setblock(x, beam_y - 1, CONN_Z1 - 1,
                    f"{VINE}[south=true]")
-        # 南侧 vine
+        # 南侧 vine（挂在 Z=56 面上）
         b.setblock(x, beam_y, CONN_Z2 + 1,
                    f"{VINE}[north=true]")
         b.setblock(x, beam_y - 1, CONN_Z2 + 1,
@@ -293,11 +299,27 @@ def build_cluster_c(b: MinecraftBuilder):
     b.setblock(52, beam_y - 1, 53, f"{LANTERN}[hanging=true]")
 
     # ================================================================
-    # 注册边界框
+    # 7. 【修改3】远香堂→C群 连接石径（露天 dirt_path）
+    # ================================================================
+    # 远香堂北面 Z=62，C群南面 Z=57，中间约5格空地
+    # 从 C群东南角(X=42~43) 向南铺 2格宽 dirt_path 到 Z=62
+    print("  [7/7] 远香堂连接石径...")
+    PATH_BLOCK = "minecraft:dirt_path"
+    # 石径宽2格：X=42, 43；从 Z=57 向南铺到 Z=62
+    for z in range(57, 63):  # Z=57~62，共6格长
+        b.setblock(42, floor_y, z, PATH_BLOCK)
+        b.setblock(43, floor_y, z, PATH_BLOCK)
+    # 石径下方补 dirt（dirt_path 需要 dirt/grass_block 支撑，否则会变回 dirt）
+    for z in range(57, 63):
+        b.setblock(42, ground_y, z, "minecraft:dirt")
+        b.setblock(43, ground_y, z, "minecraft:dirt")
+
+    # ================================================================
+    # 注册边界框（南侧扩展到 Z=62 以覆盖石径）
     # ================================================================
     b.register_bbox("cluster_c",
                     X_MIN - 1, base_y, Z_MIN - 1,
-                    X_MAX + 1, roof_y + 5, Z_MAX + 1)
+                    X_MAX + 1, roof_y + 5, max(Z_MAX, 62) + 1)
 
     cmd_used = b.cmd_count - cmd_start
     print(f"  C群建造完成! ({cmd_used} commands)")
