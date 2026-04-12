@@ -119,7 +119,7 @@ def expand_polygon_outline(polygon, inside_set):
 # ═══════════════════════════════════════════
 
 def build_highland(b: MinecraftBuilder):
-    """北侧假山高地 + 东北假山
+    """东北假山地形（北侧假山高地由 cluster_a 全权负责，避免重复铺设）
     从 config_v3.TERRAIN_ZONES 读取区域，用 dirt+grass_block 堆高。
     """
     print("=== Building Highland ===")
@@ -127,6 +127,8 @@ def build_highland(b: MinecraftBuilder):
     for zone in cfg.TERRAIN_ZONES:
         if zone["name"] == "标准地面":
             continue  # 标准地面不需要堆高
+        if zone["name"] == "北侧假山高地":
+            continue  # 由 cluster_a._build_highland_terrain() 处理，这里跳过
 
         x_min, x_max = zone["x_range"]
         z_min, z_max = zone["z_range"]

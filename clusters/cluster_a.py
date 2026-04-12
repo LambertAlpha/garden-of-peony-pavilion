@@ -86,14 +86,18 @@ def _slab(block_base, stype="bottom"):
 # 主建造函数
 # ═══════════════════════════════════════════
 
+def build_cluster_a_terrain(b: MinecraftBuilder):
+    """A群地形（必须在围墙/廊道之前调用）"""
+    _build_highland_terrain(b)
+
+
 def build_cluster_a(b: MinecraftBuilder):
-    """A群：北岸梦境群"""
+    """A群：北岸梦境群（地形已由 build_cluster_a_terrain 预先铺设）"""
     print("=" * 50)
-    print("  A群：北岸梦境群 — 开始建造")
+    print("  A群：北岸��境群 — 开始建造")
     print("=" * 50)
 
-    # ── Step 1: 假山高地地形 ──
-    _build_highland_terrain(b)
+    # Step 1 (地形) 已移至 rebuild.py phase1.5，此处跳过
 
     # ── Step 2: 围合墙 ──
     _build_enclosure_walls(b)

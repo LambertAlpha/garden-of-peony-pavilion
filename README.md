@@ -1,75 +1,61 @@
 # Garden of Peony Pavilion | 游园惊梦
 
 > "原来姹紫嫣红开遍，似这般都付与断井颓垣。"
-> — Tang Xianzu, *The Peony Pavilion* (1598)
+> -- 汤显祖《牡丹亭》(1598)
 
-Recreating the dream garden from *The Peony Pavilion* (牡丹亭·游园惊梦) in Minecraft, using AI agents and Python RCON automation. Every structure is grounded in the original Ming Dynasty opera text and classical Chinese garden design principles.
+在 Minecraft 中重建《牡丹亭·游园惊梦》的梦中花园。所有建筑通过 Python RCON 自动化生成，每一处结构均有原著文本依据，遵循明代私家园林设计原则。
 
 ## Screenshots
 
-*(TODO: Add in-game screenshots)*
+<p align="center">
+  <em>截图待补充 -- 请将游戏内截图放入 screenshots/ 目录</em>
+</p>
 
 ## What's Built
 
-A complete Ming Dynasty private garden (~80×60 blocks) featuring:
+一座完整的明代私家园林 (~120x90 blocks)，包含 5 个建筑群组、19 栋建筑：
 
-| Structure | Chinese | Roof Style | Origin |
-|-----------|---------|------------|--------|
-| Peony Pavilion | 牡丹亭 | 攒尖顶 (pyramidal) | Act 10 *Startling Dream* |
-| Peony Railing | 芍药阑 | — | "牡丹亭畔，芍药阑边" |
-| Jade-Green Hall | 翠轩 | 悬山顶 (overhanging gable) | "云霞翠轩" |
-| Garden Gate | 园门 | 硬山顶 (flush gable) | "园门洞开" |
-| Screen Wall | 粉画垣 | — | "低就高来粉画垣" |
-| Covered Bridge | 廊桥 | — | ref. Humble Administrator's Garden |
-| Taihu Rocks | 太湖石 | — | "倚太湖石" |
-| Painted Boat | 画船 | — | "烟波画船" |
-| Plum Tree | 大梅树 | — | "大梅树一株，得葬于此" |
+| 群组 | 建筑 | 出处 |
+|------|------|------|
+| A群-北岸梦境 | 牡丹亭(攒尖顶)、太湖石组、秋千、芍药阑、濯缨水阁 | "牡丹亭畔，芍药阑边" |
+| B群-西园梅林 | 大梅树、梅花庵观、翠轩(悬山顶)、池馆、画船 | "大梅树一株"、"云霞翠轩" |
+| C群-花听长廊 | 听雨轩、荼蘼花架 | "荼蘼外烟丝醉软" |
+| D群-南部中轴 | 入口门厅、小庭深院、远香堂(歇山顶)、闺塾 | "园门洞开" |
+| E群-东岸舫舟 | 石舫、曲廊亭、半亭 | "烟波画船" |
 
-Plus: winding corridors (曲廊), swing (秋千), tea-rose bower (荼蘼花架), ruined wells (断井), weeping willows (垂杨), 91 scattered flowers, and full garden weathering.
-
-## How It Works
-
-All structures are built programmatically via **Minecraft RCON** — no manual block placement.
-
-```
-Python scripts  →  RCON commands  →  Minecraft Server  →  Blocks placed
-```
-
-### Tech Stack
-- **Minecraft** 1.21.4 Java Edition (local server, creative mode, superflat)
-- **Python** + `mcrcon` library for RCON communication
-- **Claude Code** with Agent Teams for parallel script generation and review
-
-### Build Stats
-- **~6,100 RCON commands** total
-- **14 AI agents** collaborated on design and code
-- **4 research agents** for textual analysis, architectural review, and engineering audit
+加上：主环廊(曲廊)、围墙月洞门、桥梁、垂杨、断井、散花 91 朵、全园做旧。
 
 ## Project Structure
 
 ```
 garden-of-peony-pavilion/
-├── builder.py              # Core build library (fill, line, circle, clone)
-├── blocks.py               # Material palette mapping
-├── landscape.py            # Final landscaping pass
-├── structures/
-│   ├── terrain.py          # Terrain shaping (north hills + pond)
-│   ├── wall.py             # Perimeter walls + lattice windows + moon gate
-│   ├── pavilion.py         # Peony Pavilion (pyramidal roof)
-│   ├── peony_rail.py       # Peony railing enclosure
-│   ├── hall.py             # Jade-Green Hall (waterside)
-│   ├── gate.py             # Entrance area + screen wall + bower
-│   ├── corridor.py         # Winding corridor system (6 segments)
-│   ├── bridge_boat.py      # Covered bridge + painted boat
-│   └── rocks_swing.py      # Taihu rocks + swing
-├── docs/
-│   ├── 总平面布局.md        # Master plan with coordinates
-│   ├── 建筑模块清单.md      # Module specs with textual citations
-│   ├── 材料方案.md          # Block palette
-│   ├── 原文考证.md          # Primary source analysis
-│   ├── 工程架构.md          # Technical architecture
-│   └── 建造日志.md          # Build log
-└── README.md
+├── README.md
+├── rebuild.py                   # 一键重建入口
+├── config/
+│   └── config_v4.py             # v4 总平面图配置 (碰撞修正版)
+├── core/
+│   ├── builder.py               # RCON 封装 + 几何工具 (fill/line/circle)
+│   ├── blocks.py                # 材质映射表 (PALETTE)
+│   ├── verifier.py              # 建造后自动验证系统
+│   ├── blueprint.py             # 声明式建筑蓝图系统
+│   └── skill_library.py         # Voyager-style 建筑技能库
+├── clusters/                    # 5 个建筑群组
+│   ├── cluster_a.py             # A群: 北岸梦境 (牡丹亭/太湖石/秋千)
+│   ├── cluster_b.py             # B群: 西园梅林 (大梅树/翠轩/画船)
+│   ├── cluster_c.py             # C群: 花听长廊 (听雨轩/荼蘼花架)
+│   ├── cluster_d.py             # D群: 南部中轴 (入口/远香堂/闺塾)
+│   ├── cluster_e.py             # E群: 东岸舫舟 (石舫/曲廊亭/半亭)
+│   └── corridors.py             # 主环廊 + 群组间连接路径
+├── phases/                      # 分阶段建造脚本 (v3 遗留，仍可独立运行)
+│   ├── phase1_water.py          # 水面系统
+│   ├── phase2_corridors.py      # 廊道骨架 + 围墙
+│   ├── phase3_buildings.py      # 19 栋建筑
+│   ├── phase4_details.py        # 植被/灯笼/做旧
+│   └── phase5_landscape.py      # 景观填充
+├── register_skills.py           # 预置技能注册
+├── skills/                      # 建筑技能文档
+├── docs/                        # 设计文档 (原文考证/平面图/建造日志)
+└── screenshots/                 # 游戏内截图
 ```
 
 ## Quick Start
@@ -77,66 +63,68 @@ garden-of-peony-pavilion/
 ### Prerequisites
 - Minecraft Java Edition 1.21.4
 - Python 3.10+
-- `uv` package manager (or `pip install mcrcon`)
+- `mcrcon` (`pip install mcrcon` or `uv pip install mcrcon`)
 
 ### Setup
 
 ```bash
-# 1. Start a local Minecraft server (creative, superflat, offline mode)
+# 1. 启动 Minecraft 服务器 (创造模式, 超平坦, 启用 RCON)
 cd ~/minecraft-server && java -Xmx2G -jar server.jar nogui
 
-# 2. Enable RCON in server.properties:
-#    enable-rcon=true
-#    rcon.password=garden2026
-#    rcon.port=25575
+# server.properties 中设置:
+#   enable-rcon=true
+#   rcon.password=garden2026
+#   rcon.port=25575
 
-# 3. Join the server in Minecraft client (localhost)
+# 2. 客户端连接 localhost
 
-# 4. Build everything:
-cd garden-of-peony-pavilion
+# 3. 一键重建整个园林
+python rebuild.py
 
-# Phase 1: Terrain + Walls
-uvx --from mcrcon python3 structures/terrain.py
-uvx --from mcrcon python3 structures/wall.py
-
-# Phase 2: Core buildings
-uvx --from mcrcon python3 structures/pavilion.py
-uvx --from mcrcon python3 structures/peony_rail.py
-uvx --from mcrcon python3 structures/hall.py
-
-# Phase 3: Circulation
-uvx --from mcrcon python3 structures/gate.py
-uvx --from mcrcon python3 structures/corridor.py
-uvx --from mcrcon python3 structures/bridge_boat.py
-
-# Phase 4: Landscape
-uvx --from mcrcon python3 structures/rocks_swing.py
-uvx --from mcrcon python3 landscape.py
+# 或分步执行
+python rebuild.py verify       # 仅碰撞检测
+python rebuild.py clear        # 仅清空世界
+python rebuild.py phase 1      # 执行单个 phase (0~5)
 ```
+
+## How It Works
+
+```
+Python scripts  -->  RCON commands  -->  Minecraft Server  -->  Blocks placed
+```
+
+- **rebuild.py** 按顺序调度: 清空 -> 水面 -> 围墙 -> 5群组 -> 廊道 -> 景观
+- **config_v4.py** 定义所有建筑坐标，内置碰撞检测确保 3 格外延无重叠
+- **core/builder.py** 封装 RCON，提供 fill/line/circle/clone 等几何原语
+
+### Build Stats
+- **~6,100 RCON commands** total
+- **14 AI agents** collaborated on design and code
+- **4 research agents** for textual analysis, architectural review, and engineering audit
 
 ## Design Philosophy
 
-This is **not** a replica of any real garden. It's a spatial interpretation of Tang Xianzu's text, following two principles:
+这不是任何真实园林的复刻，而是对汤显祖文本的空间诠释，遵循两个原则：
 
-1. **Textual fidelity** — Every structure traces back to specific lines in the opera
-2. **Half-ruined beauty** — "姹紫嫣红开遍，似这般都付与断井颓垣" (Flowers bloom in riotous splendor, yet all given over to broken wells and crumbling walls)
+1. **文本忠实** -- 每一处结构都可追溯到原著具体唱词
+2. **半颓之美** -- "姹紫嫣红开遍，似这般都付与断井颓垣"
 
-The garden is designed to be walked through as Du Liniang's journey:
+园林按杜丽娘游园路线设计：
 
 ```
-Gate → Courtyard → Screen wall (view blocked) → Turn →
-Rose bower → Winding path → Pond (view opens!) →
-Corridor → Hall (overlooking painted boat) →
-Taihu rocks (cave passage) → Swing →
-Peony railing → Peony Pavilion (dream encounter) →
-Secluded corner → Lone plum tree (burial site)
+园门 -> 小庭 -> 影壁(遮视线) -> 转弯 ->
+荼蘼花架 -> 曲径 -> 池面(豁然开朗!) ->
+廊道 -> 翠轩(远眺画船) ->
+太湖石(穿洞) -> 秋千 ->
+芍药阑 -> 牡丹亭(梦中相遇) ->
+幽僻角落 -> 大梅树(葬花之地)
 ```
 
 ## References
 
-- Tang Xianzu, *The Peony Pavilion* (牡丹亭), 1598 — Acts 7, 9, 10, 12
-- Ji Cheng, *The Craft of Gardens* (园冶), 1631
-- Suzhou classical gardens (Humble Administrator's Garden, Lingering Garden)
+- 汤显祖《牡丹亭》1598 -- 第七、九、十、十二出
+- 计成《园冶》1631
+- 苏州古典园林 (拙政园、留园)
 
 ## License
 
