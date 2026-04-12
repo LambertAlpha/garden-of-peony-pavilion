@@ -122,6 +122,12 @@ def build_cluster_a(b: MinecraftBuilder):
     _build_south_revetment(b)              # P2-2: 南墙外侧驳岸
     _build_swing_step(b)                   # P2-3: 秋千西侧下行台阶
 
+    # ── P3 修复步骤: 动线连通 ──
+    _build_path_moongate_to_pavilion(b)    # P3-1: 西墙月洞门→牡丹亭铺装路
+    _build_path_pavilion_to_taihu(b)       # P3-2: 牡丹亭→太湖石碎石路
+    _build_path_south_gate_to_corridor(b)  # P3-3: 南墙月洞门→斜坡廊入口路径
+    _build_moon_gate_taihu_to_zhuoying(b)  # P3-4: 太湖石→濯缨水阁坡道月洞门
+
     print("=" * 50)
     print(f"  A群完成！总命令数: {b.cmd_count}")
     print("=" * 50)
@@ -370,6 +376,34 @@ def _build_peony_pavilion(b: MinecraftBuilder):
     b.fill(cx - 1, floor_y + 1, cz - 1, cx + 1, floor_y + 1, cz + 1, RED_CARPET)
     b.fill(cx, floor_y + 1, cz, cx, floor_y + 3, cz, PILLAR)
     b.setblock(cx, floor_y + 4, cz, f"{LANTERN}[hanging=false]")
+
+    # ── 四面入口下行台阶 (台面-55 → 地面-57, 2级stairs) ──
+    # 南面不加台阶(直接接斜坡廊 Y=-55)
+    # Minecraft stairs 标准做法: 每格Z升1格Y, 玩家可自动走上
+    #
+    # 北面 (从北向南走进亭子):
+    #   Z=z1-1(=0): stair Y=-56 facing=south (散水带位置, 第一级)
+    #   Z=z1  (=1): stair Y=-55 facing=south (台基边缘, 第二级, 替换floor)
+    #   Z=z1+1(=2): 正常台面 floor Y=-55 (到达台面)
+    for step_x in range(cx - 2, cx + 3):
+        # Z=0: Y=-56 stair (在散水 Y=-57 上一格)
+        b.setblock(step_x, -56, z1 - 1, _stair(BASE_STEP, "south"))
+        # Z=1: Y=-55 stair (替换台基边缘的 floor)
+        b.setblock(step_x, -55, z1, _stair(BASE_STEP, "south"))
+
+    # 西面 (从西向东走进亭子):
+    #   X=x1-1(=50): stair Y=-56 facing=east
+    #   X=x1  (=51): stair Y=-55 facing=east (替换台基边缘)
+    for step_z in range(cz - 2, cz + 3):
+        b.setblock(x1 - 1, -56, step_z, _stair(BASE_STEP, "east"))
+        b.setblock(x1, -55, step_z, _stair(BASE_STEP, "east"))
+
+    # 东面 (从东向西走进亭子):
+    #   X=x2+1(=66): stair Y=-56 facing=west
+    #   X=x2  (=65): stair Y=-55 facing=west (替换台基边缘)
+    for step_z in range(cz - 2, cz + 3):
+        b.setblock(x2 + 1, -56, step_z, _stair(BASE_STEP, "west"))
+        b.setblock(x2, -55, step_z, _stair(BASE_STEP, "west"))
 
     b.register_bbox("peony_pavilion",
                      x1 - 2, gy, z1 - 2, x2 + 2, roof_base_y + 10, z2 + 2)
@@ -1253,6 +1287,152 @@ def _build_swing_step(b: MinecraftBuilder):
         b.setblock(74, -58, z, _stair(BASE_STEP, "east"))
 
     print(f"    秋千台阶完成. [{b.cmd_count} cmds]")
+
+
+# ═══════════════════════════════════════════
+# P3-1: 西墙月洞门→牡丹亭铺装路
+# ═══════════════════════════════════════════
+
+def _build_path_moongate_to_pavilion(b: MinecraftBuilder):
+    """P3-1: 从西墙月洞门(X=45, Z=15)到牡丹亭西入口(X=49, Z=6~10)铺装石板路
+
+    月洞门落地 Y=-57(高地地面), 牡丹亭台面 Y=-55
+    路径: X=46~49, Z=8(牡丹亭中轴cz=8), 宽3格(Z=7~9)
+    到台面有台阶(修改1已在西入口放了台阶)
+    """
+    print("  [P3-1] 月洞门→牡丹亭路...")
+
+    gy = -57  # 高地地面
+    path_z_center = 8  # 对齐牡丹亭 cz
+
+    # 铺装路面: X=46~50, Z=7~9, Y=-57 (石砖+碎石交替)
+    for x in range(46, 51):
+        for z in range(path_z_center - 1, path_z_center + 2):
+            block = BASE if (x + z) % 2 == 0 else BASE_COL
+            b.setblock(x, gy, z, block)
+
+    # 两侧用苔石装饰边缘
+    for x in range(46, 51):
+        b.setblock(x, gy, path_z_center - 2, MOSSY_CB)
+        b.setblock(x, gy, path_z_center + 2, MOSSY_CB)
+
+    print(f"    月洞门→牡丹亭路完成. [{b.cmd_count} cmds]")
+
+
+# ═══════════════════════════════════════════
+# P3-2: 牡丹亭→太湖石碎石路
+# ═══════════════════════════════════════════
+
+def _build_path_pavilion_to_taihu(b: MinecraftBuilder):
+    """P3-2: 从牡丹亭东入口(X=67, Z=6~10)到太湖石西缘(X=73, Z=8)碎石路
+
+    牡丹亭台面 Y=-55, 东入口台阶降到 Y=-57(修改1已加台阶)
+    高地地面 Y=-57, 太湖石地面 Y=-57 → 齐平
+    路径: X=67~73, Z=7~9(3格宽), Y=-57
+    """
+    print("  [P3-2] 牡丹亭→太湖石碎石路...")
+
+    gy = -57
+    random.seed(47)
+
+    for x in range(67, 74):
+        for z in range(7, 10):
+            # 碎石+苔石随机混合
+            if random.random() < 0.3:
+                b.setblock(x, gy, z, MOSSY_CB)
+            else:
+                b.setblock(x, gy, z, GRAVEL)
+
+    print(f"    牡丹亭→太湖石碎石路完成. [{b.cmd_count} cmds]")
+
+
+# ═══════════════════════════════════════════
+# P3-3: 南墙月洞门→斜坡廊入口路径
+# ═══════════════════════════════════════════
+
+def _build_path_south_gate_to_corridor(b: MinecraftBuilder):
+    """P3-3: 从南墙月洞门(X=58, Z=30)到斜坡廊西转段(X=55, Z=22)铺路+台阶
+
+    南墙月洞门底部 Y=-60, 斜坡廊西转段 Y=-58
+    路线: X=56~60, Z=29→22(向北直走), 宽5格
+    高度: Z=30月洞门落地Y=-60 → Z=29:-60 → Z=27:-59(台阶) → Z=25:-58 → Z=22:-58
+    """
+    print("  [P3-3] 南墙月洞门→斜坡廊...")
+
+    path_x1, path_x2 = 56, 60  # 与斜坡廊同宽
+
+    # Z=29~28: Y=-60(刚进月洞门)
+    for z in range(28, 30):
+        b.fill(path_x1, -60, z, path_x2, -60, z, BASE)
+
+    # Z=27: 上行台阶 -60 → -59
+    b.fill(path_x1, -60, 27, path_x2, -60, 27, _stair(BASE_STEP, "north"))
+
+    # Z=25~26: Y=-59
+    for z in range(25, 27):
+        b.fill(path_x1, -59, z, path_x2, -59, z, BASE)
+
+    # Z=24: 上行台阶 -59 → -58
+    b.fill(path_x1, -59, 24, path_x2, -59, 24, _stair(BASE_STEP, "north"))
+
+    # Z=22~23: Y=-58 (与斜坡廊西转段齐平)
+    for z in range(22, 24):
+        b.fill(path_x1, -58, z, path_x2, -58, z, BASE)
+
+    # 两侧栏杆
+    for z in range(22, 30):
+        if z >= 28:
+            ry = -60
+        elif z >= 25:
+            ry = -59
+        else:
+            ry = -58
+        b.setblock(path_x1 - 1, ry + 1, z, RAIL)
+        b.setblock(path_x2 + 1, ry + 1, z, RAIL)
+
+    # 填充路面下方防空洞
+    for z in range(25, 30):
+        b.fill(path_x1, -61, z, path_x2, -61, z, DIRT)
+    for z in range(25, 27):
+        b.fill(path_x1, -60, z, path_x2, -60, z, DIRT)
+
+    print(f"    南墙月洞门→斜坡廊路完成. [{b.cmd_count} cmds]")
+
+
+# ═══════════════════════════════════════════
+# P3-4: 太湖石→濯缨水阁坡道上的月洞门
+# ═══════════════════════════════════════════
+
+def _build_moon_gate_taihu_to_zhuoying(b: MinecraftBuilder):
+    """P3-4: 在太湖石→濯缨水阁坡道中间(Z=18~19, X=81~83)建一座独立月洞门框
+
+    坡道 Z=18~19 处 Y=-58, 月洞门圆心在坡道中轴 X=82, Y=-56(地面上方2格)
+    用白墙(WALL_BLOCK)砌圆形门框, 半径2(小型), 中间开口
+    """
+    print("  [P3-4] 坡道月洞门...")
+
+    gate_z = 18  # 坡道 Z=18 处
+    gate_cx = 82  # 坡道中轴
+    gate_cy = -56  # 圆心Y (地面-58 + 2格)
+    radius = 2
+
+    # 先砌一面白墙 (X=80~84, Y=-58~-53, Z=gate_z)
+    b.fill(80, -58, gate_z, 84, -53, gate_z, WALL_BLOCK)
+    # 顶部帽
+    b.fill(80, -53, gate_z, 84, -53, gate_z, _slab(WALL_CAP, "bottom"))
+
+    # 开圆形洞 (半径2)
+    for dx in range(-radius, radius + 1):
+        for dy in range(-radius, radius + 1):
+            if dx * dx + dy * dy <= radius * radius:
+                bx = gate_cx + dx
+                by = gate_cy + dy
+                b.setblock(bx, by, gate_z, AIR)
+
+    # 确保坡道地面不被墙覆盖: 重新铺坡道面
+    b.fill(81, -58, gate_z, 83, -58, gate_z, BASE)
+
+    print(f"    坡道月洞门完成. [{b.cmd_count} cmds]")
 
 
 # ═══════════════════════════════════════════
