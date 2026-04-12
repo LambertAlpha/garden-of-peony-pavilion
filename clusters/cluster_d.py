@@ -407,15 +407,23 @@ def _build_side_flower_walls(b: MinecraftBuilder):
     wall_z1, wall_z2 = 72, 85  # 远香堂南端到门厅北端
     wall_h = 4  # 墙高
 
+    # 【修改】西墙(x=49)在Z=77~79留门洞给西廊道通行
+    west_door_zs = {77, 78, 79}  # 西廊门洞位置
+
     for wx in [49, 67]:
         for z in range(wall_z1, wall_z2 + 1):
+            # 西墙在门洞位置跳过
+            if wx == 49 and z in west_door_zs:
+                continue
             b.setblock(wx, Y0 + 1, z, WALL_BASE)
             b.setblock(wx, Y0 + 2, z, WALL)
             b.setblock(wx, Y0 + 3, z, WALL)
             b.setblock(wx, Y0 + 4, z, WALL_CAP)
 
-        # 花窗: 每隔4格开一个
+        # 花窗: 每隔4格开一个（跳过门洞位置）
         for z in range(wall_z1 + 2, wall_z2, 4):
+            if wx == 49 and z in west_door_zs:
+                continue
             b.setblock(wx, Y0 + 3, z, WINDOW)
             b.setblock(wx, Y0 + 2, z, WINDOW)
 

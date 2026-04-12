@@ -11,8 +11,8 @@
   - Z=0~20 区域 fill dirt 堆高到 Y=-57（假山高地）
   - Z=20~30 渐降到标准地面 Y=-60
   - 南侧 Z=30 矮墙 + 月洞门, 西侧 x=45 矮墙 + 月洞门
-  - 牡丹亭→芍药阑 斜坡廊 (Y=-57 降→ -58)
-  - 太湖石→濯缨水阁 坡道 (Y=-57 降→ -59)
+  - 牡丹亭→芍药阑 斜坡廊 (Y=-55 降→ -58)
+  - 太湖石→濯缨水阁 坡道 (Y=-57 降→ -59 升→ -57)
 """
 
 import sys
@@ -116,6 +116,11 @@ def build_cluster_a(b: MinecraftBuilder):
 
     # ── Step 9: 濯缨水阁 ──
     _build_zhuoying_pavilion(b)
+
+    # ── P2 修复步骤 ──
+    _build_gravel_path_swing_to_slope(b)   # P2-1: 碎石路连接秋千→坡道
+    _build_south_revetment(b)              # P2-2: 南墙外侧驳岸
+    _build_swing_step(b)                   # P2-3: 秋千西侧下行台阶
 
     print("=" * 50)
     print(f"  A群完成！总命令数: {b.cmd_count}")
@@ -1182,6 +1187,72 @@ def _build_gable_roof_x(b, x1, z1, x2, z2, base_y):
            _stair(EAVE_OUTER, "south", "top"))
     b.fill(ox1, eave_y, z2 + 2, ox2, eave_y, z2 + 2,
            _stair(EAVE_OUTER, "north", "top"))
+
+
+# ═══════════════════════════════════════════
+# P2-1: 秋千→坡道入口碎石路
+# ═══════════════════════════════════════════
+
+def _build_gravel_path_swing_to_slope(b: MinecraftBuilder):
+    """P2-1 修复: 从秋千(76,9)到坡道入口(82,15)铺3格宽碎石路，连接太湖石→秋千→水阁"""
+    print("  [P2-1] 秋千→坡道碎石路...")
+
+    # 秋千在 (76,8), 坡道起点在 (82,15)
+    # 路径: 先从 (76,9) 向东到 (82,9)，再从 (82,9) 向南到 (82,15)
+    gy = -57  # 假山高地地面
+
+    # 东西段: X=76~82, Z=8~10 (3格宽)
+    for x in range(77, 83):  # 从秋千东侧开始，避开秋千本体
+        for z in range(8, 11):
+            b.setblock(x, gy, z, GRAVEL)
+
+    # 南北段: X=81~83 (3格宽), Z=10~15
+    for z in range(10, 16):
+        for x in range(81, 84):
+            b.setblock(x, gy, z, GRAVEL)
+
+    print(f"    碎石路完成. [{b.cmd_count} cmds]")
+
+
+# ═══════════════════════════════════════════
+# P2-2: 南墙外侧驳岸
+# ═══════════════════════════════════════════
+
+def _build_south_revetment(b: MinecraftBuilder):
+    """P2-2 修复: Z=31~33 铺石板+台阶+苔石过渡到水面，形成南墙外侧驳岸"""
+    print("  [P2-2] 南墙外侧驳岸...")
+
+    x_min, x_max = 45, 95
+    water_y = cfg.WATER_SURFACE_Y  # -61
+
+    # Z=31: 紧贴南墙外，石砖台阶下行
+    b.fill(x_min, -60, 31, x_max, -60, 31,
+           _stair(BASE_STEP, "south"))
+
+    # Z=32: 苔石砖过渡
+    b.fill(x_min, -61, 32, x_max, -61, 32, MOSSY_CB)
+
+    # Z=33: 石砖半砖入水
+    b.fill(x_min, -61, 33, x_max, -61, 33,
+           _slab(WALL_CAP, "bottom"))
+
+    print(f"    驳岸完成. [{b.cmd_count} cmds]")
+
+
+# ═══════════════════════════════════════════
+# P2-3: 秋千西侧下行台阶
+# ═══════════════════════════════════════════
+
+def _build_swing_step(b: MinecraftBuilder):
+    """P2-3 修复: 秋千地面(Y=-58)比周围高地(Y=-57)低1格，在西侧加下行台阶衔接"""
+    print("  [P2-3] 秋千西侧台阶...")
+
+    # 秋千区域 X=75~77, Z=7~9, gy=-58
+    # 高地 Y=-57，秋千 Y=-58，西侧 X=74 放朝东的下行台阶
+    for z in range(7, 10):
+        b.setblock(74, -58, z, _stair(BASE_STEP, "east"))
+
+    print(f"    秋千台阶完成. [{b.cmd_count} cmds]")
 
 
 # ═══════════════════════════════════════════
